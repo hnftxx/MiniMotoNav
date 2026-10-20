@@ -1,0 +1,10 @@
+build/
+.pio/
+.vs/
+.vscode/
+.codegraph/
+/AGENTS.md
+/*.png
+shots/*.bmp
+Thumbs.db
+.DS_Store
