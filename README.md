@@ -42,7 +42,7 @@ LVGL 9.3.0 ada di `third_party/lvgl` sebagai submodule, SDL2 2.30.9 sudah ada di
 `third_party/SDL2`. Jika clone dari GitHub, sertakan submodule:
 
 ```powershell
-git clone --recursive <url-repo>
+git clone --recursive https://github.com/hnftxx/MiniMotoNav.git
 ```
 
 ```powershell
