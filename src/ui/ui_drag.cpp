@@ -39,30 +39,31 @@ void panel_card(lv_layer_t* layer, const Palette& p, int x, int y, int w, int h)
 }
 
 // Deretan titik segmen. 25% titik terakhir berwarna merah.
-void dots(lv_layer_t* layer, const Palette& p, int x, int y, int count, float level) {
+void dots(lv_layer_t* layer, const Palette& p, int x, int y, int count, float level, int span) {
+    const int step = span / (count - 1);
     for (int i = 0; i < count; ++i) {
         const float pos = (float)(i + 1) / (float)count;
         lv_color_t c = p.seg_off;
         if (pos <= level + 0.001f) c = (i >= count * 3 / 4) ? kRedBright : kWhite;
-        draw::circle(layer, x + i * 7, y, 2, c, LV_OPA_COVER);
+        draw::circle(layer, x + i * step, y, 2, c, LV_OPA_COVER);
     }
 }
 
 // Kartu throttle dan RPM di baris bawah.
 void live_cards(lv_layer_t* layer, const Palette& p, const Telemetry& t, int y, int h) {
-    panel_card(layer, p, 8, y, 150, h);
-    draw::text(layer, "THROTTLE", &font_ui_10, kMuted, 18, y + 7, draw::Align::Left, 1);
+    panel_card(layer, p, 8, y, 147, h);
+    draw::text(layer, "THROTTLE", &font_ui_10, kMuted, 16, y + 7, draw::Align::Left, 1);
     char th[12];
     std::snprintf(th, sizeof(th), "%.0f%%", t.throttle);
-    draw::text(layer, th, &font_ui_12, p.ink, 18, y + 18, draw::Align::Left, 0);
-    dots(layer, p, 18, y + h - 10, 20, clamp01(t.throttle / 100.0f));
+    draw::text(layer, th, &font_ui_12, p.ink, 16, y + 19, draw::Align::Left, 0);
+    dots(layer, p, 16, y + h - 12, 14, clamp01(t.throttle / 100.0f), 120);
 
-    panel_card(layer, p, 162, y, 150, h);
-    draw::text(layer, "RPM", &font_ui_10, kMuted, 172, y + 7, draw::Align::Left, 1);
+    panel_card(layer, p, 165, y, 147, h);
+    draw::text(layer, "RPM", &font_ui_10, kMuted, 173, y + 7, draw::Align::Left, 1);
     char rpm[12];
     std::snprintf(rpm, sizeof(rpm), "%.0f", t.rpm);
-    draw::text(layer, rpm, &font_ui_12, p.ink, 172, y + 18, draw::Align::Left, 0);
-    dots(layer, p, 172, y + h - 10, 20, clamp01((t.rpm - 1000.0f) / 8200.0f));
+    draw::text(layer, rpm, &font_ui_12, p.ink, 173, y + 19, draw::Align::Left, 0);
+    dots(layer, p, 173, y + h - 12, 14, clamp01((t.rpm - 1000.0f) / 8200.0f), 120);
 }
 
 } // namespace
@@ -140,8 +141,8 @@ void DragView::update(const DragSession& drag, const Telemetry& t, const PerfSta
             lv_obj_invalidate_area(root_, &digit);
             if (stats_accum_ >= 0.1f) {
                 stats_accum_ = 0.0f;
-                lv_area_t speed_card{222, 34, 314, 88};
-                lv_area_t cards{6, 184, 314, 232};
+                lv_area_t speed_card{210, 34, 314, 90};
+                lv_area_t cards{6, 174, 314, 232};
                 lv_obj_invalidate_area(root_, &speed_card);
                 lv_obj_invalidate_area(root_, &cards);
             }
@@ -152,9 +153,9 @@ void DragView::update(const DragSession& drag, const Telemetry& t, const PerfSta
             lv_obj_invalidate_area(root_, &timer);
             if (stats_accum_ >= 0.1f) {
                 stats_accum_ = 0.0f;
-                lv_area_t speed{6, 98, 104, 152};
-                lv_area_t distance{112, 98, 314, 142};
-                lv_area_t cards{6, 160, 314, 232};
+                lv_area_t speed{6, 94, 114, 164};
+                lv_area_t distance{114, 96, 314, 144};
+                lv_area_t cards{6, 164, 314, 232};
                 lv_obj_invalidate_area(root_, &speed);
                 lv_obj_invalidate_area(root_, &distance);
                 lv_obj_invalidate_area(root_, &cards);
@@ -164,7 +165,7 @@ void DragView::update(const DragSession& drag, const Telemetry& t, const PerfSta
         case DragPhase::Idle:
             if (stats_accum_ >= 0.1f) {
                 stats_accum_ = 0.0f;
-                lv_area_t cards{6, 180, 314, 232};
+                lv_area_t cards{6, 174, 314, 232};
                 lv_obj_invalidate_area(root_, &cards);
             }
             break;
@@ -240,41 +241,41 @@ void DragView::draw_card(lv_layer_t* layer, int x, int y, int w, int h) {
 }
 
 void DragView::draw_idle(lv_layer_t* layer) {
-    draw_card(layer, 8, 36, 88, 50);
+    draw_card(layer, 8, 36, 100, 44);
     draw::text(layer, "TARGET", &font_ui_10, kMuted, 16, 42, draw::Align::Left, 1);
     char target[16];
     format_distance(target, sizeof(target), settings_.target_distance_m);
-    draw::text(layer, target, &font_ui_20, palette_.ink, 16, 58, draw::Align::Left, 0);
+    draw::text(layer, target, &font_ui_12, palette_.ink, 16, 56, draw::Align::Left, 0);
 
-    draw_card(layer, 224, 36, 88, 50);
-    draw::text(layer, "COUNTDOWN", &font_ui_10, kMuted, 232, 42, draw::Align::Left, 1);
+    draw_card(layer, 212, 36, 100, 44);
+    draw::text(layer, "COUNTDOWN", &font_ui_10, kMuted, 220, 42, draw::Align::Left, 1);
     char cd[16];
     std::snprintf(cd, sizeof(cd), "%.1f s", (float)settings_.countdown_ms / 1000.0f);
-    draw::text(layer, cd, &font_ui_20, palette_.ink, 232, 58, draw::Align::Left, 0);
+    draw::text(layer, cd, &font_ui_12, palette_.ink, 220, 56, draw::Align::Left, 0);
 
-    draw::text_in(layer, "00:00.00", &font_timer_46, palette_.ink, 160, 84,
+    draw::text_in(layer, "00:00.00", &font_timer_46, palette_.ink, 160, 100,
                   draw::Align::Center, 1, LV_OPA_60);
-    draw::text_in(layer, "READY TO LAUNCH", &font_ui_12, kRedBright, 160, 128,
+    draw::text_in(layer, "READY TO LAUNCH", &font_ui_12, kRedBright, 160, 140,
                   draw::Align::Center, 2);
-    draw::text_in(layer, "PRESS SPACE TO ARM", &font_ui_10, kMuted, 160, 152,
+    draw::text_in(layer, "PRESS SPACE TO ARM", &font_ui_10, kMuted, 160, 158,
                   draw::Align::Center, 1);
 
-    live_cards(layer, palette_, telemetry_, 182, 48);
+    live_cards(layer, palette_, telemetry_, 176, 56);
 }
 
 void DragView::draw_countdown(lv_layer_t* layer) {
-    draw_card(layer, 8, 36, 88, 50);
+    draw_card(layer, 8, 36, 100, 50);
     draw::text(layer, "TARGET", &font_ui_10, kMuted, 16, 42, draw::Align::Left, 1);
     char target[16];
     format_distance(target, sizeof(target), settings_.target_distance_m);
-    draw::text(layer, target, &font_ui_20, palette_.ink, 16, 58, draw::Align::Left, 0);
+    draw::text(layer, target, &font_ui_12, palette_.ink, 16, 56, draw::Align::Left, 0);
 
-    draw_card(layer, 224, 36, 88, 50);
-    draw::text(layer, "SPEED", &font_ui_10, kMuted, 232, 42, draw::Align::Left, 1);
+    draw_card(layer, 212, 36, 100, 50);
+    draw::text(layer, "SPEED", &font_ui_10, kMuted, 220, 42, draw::Align::Left, 1);
     char spd[16];
     std::snprintf(spd, sizeof(spd), "%.0f", speed_);
-    draw::text(layer, spd, &font_ui_20, palette_.ink, 232, 58, draw::Align::Left, 0);
-    draw::text(layer, "KM/H", &font_ui_10, kMuted, 232, 76, draw::Align::Left, 1);
+    draw::text(layer, spd, &font_ui_16, palette_.ink, 220, 56, draw::Align::Left, 0);
+    draw::text(layer, "KM/H", &font_ui_10, kMuted, 220, 74, draw::Align::Left, 1);
 
     // Angka hitung mundur di tengah, dengan cahaya merah di belakang.
     const float pulse = 0.5f + 0.5f * std::sin(anim_ * 2.0f);
@@ -292,19 +293,19 @@ void DragView::draw_countdown(lv_layer_t* layer) {
     draw::text_in(layer, digit, &font_count_96, kWhite, 160, 96, draw::Align::Center, 0);
 
     draw::text_in(layer, countdown_digit_ > 0 ? "READY?" : "LAUNCH", &font_ui_12, kRedBright,
-                  160, 140, draw::Align::Center, 2);
+                  160, 138, draw::Align::Center, 2);
 
     // Baris jarak dengan bar progres.
-    draw::text(layer, "DISTANCE", &font_ui_10, kMuted, 16, 158, draw::Align::Left, 1);
+    draw::text(layer, "DISTANCE", &font_ui_10, kMuted, 16, 150, draw::Align::Left, 1);
     char dist[40];
     std::snprintf(dist, sizeof(dist), "%.1f / %.1f km", distance_ / 1000.0f,
                   settings_.target_distance_m / 1000.0f);
-    draw::text(layer, dist, &font_ui_12, palette_.ink, 16, 168, draw::Align::Left, 0);
-    draw::rect(layer, 200, 164, 108, 6, 3, palette_.seg_off, LV_OPA_COVER);
+    draw::text(layer, dist, &font_ui_12, palette_.ink, 16, 161, draw::Align::Left, 0);
+    draw::rect(layer, 200, 156, 108, 6, 3, palette_.seg_off, LV_OPA_COVER);
     const int fill = (int)std::lround(108 * clamp01(progress_));
-    if (fill > 0) draw::rect(layer, 200, 164, fill, 6, 3, kRed, LV_OPA_COVER);
+    if (fill > 0) draw::rect(layer, 200, 156, fill, 6, 3, kRed, LV_OPA_COVER);
 
-    live_cards(layer, palette_, telemetry_, 186, 44);
+    live_cards(layer, palette_, telemetry_, 176, 56);
 }
 
 void DragView::draw_running(lv_layer_t* layer) {
@@ -319,39 +320,39 @@ void DragView::draw_running(lv_layer_t* layer) {
 
     char time_buf[16];
     format_time(time_buf, sizeof(time_buf), elapsed_);
-    draw::text_in(layer, time_buf, &font_timer_46, paused ? kRedBright : palette_.ink, 160, 70,
-                  draw::Align::Center, 1);
+    draw::text_in(layer, time_buf, &font_timer_46, paused ? kRedBright : palette_.ink, 160, 66,
+                  draw::Align::Center, 0);
 
     // Kartu kecepatan.
-    draw_card(layer, 8, 100, 92, 50);
-    draw::text(layer, "SPEED", &font_ui_10, kMuted, 16, 106, draw::Align::Left, 1);
+    draw_card(layer, 8, 96, 104, 64);
+    draw::text(layer, "SPEED", &font_ui_10, kMuted, 16, 102, draw::Align::Left, 1);
     char speed[16];
     std::snprintf(speed, sizeof(speed), "%.0f", speed_);
-    draw::text(layer, speed, &font_ui_20, palette_.ink, 16, 118, draw::Align::Left, 0);
-    draw::text(layer, "KM/H", &font_ui_10, kMuted, 16, 139, draw::Align::Left, 1);
+    draw::text(layer, speed, &font_ui_20, palette_.ink, 16, 114, draw::Align::Left, 0);
+    draw::text(layer, "KM/H", &font_ui_10, kMuted, 16, 140, draw::Align::Left, 1);
 
     // Jarak, PB, dan bar progres.
-    draw::text(layer, "DISTANCE", &font_ui_10, kMuted, 116, 102, draw::Align::Left, 1);
+    draw::text(layer, "DISTANCE", &font_ui_10, kMuted, 122, 100, draw::Align::Left, 1);
     if (best_ > 0.0f) {
         char bt[16];
         char pb[32];
         format_time(bt, sizeof(bt), best_);
         std::snprintf(pb, sizeof(pb), "PB %s", bt);
-        draw::text(layer, pb, &font_ui_10, kMuted, 308, 102, draw::Align::Right, 0);
+        draw::text(layer, pb, &font_ui_10, kMuted, 312, 100, draw::Align::Right, 0);
     }
     char dist[40];
     std::snprintf(dist, sizeof(dist), "%.2f / %.1f km", distance_ / 1000.0f,
                   settings_.target_distance_m / 1000.0f);
-    draw::text(layer, dist, &font_ui_12, palette_.ink, 116, 114, draw::Align::Left, 0);
+    draw::text(layer, dist, &font_ui_12, palette_.ink, 122, 112, draw::Align::Left, 0);
 
-    const int bar_x = 116;
-    const int bar_w = 196;
-    draw::rect(layer, bar_x, 132, bar_w, 6, 3, palette_.seg_off, LV_OPA_COVER);
+    const int bar_x = 122;
+    const int bar_w = 190;
+    draw::rect(layer, bar_x, 136, bar_w, 6, 3, palette_.seg_off, LV_OPA_COVER);
     const int fill = (int)std::lround(bar_w * clamp01(progress_));
-    if (fill > 0) draw::rect(layer, bar_x, 132, fill, 6, 3, kRed, LV_OPA_COVER);
-    draw::circle(layer, bar_x + fill, 135, 4, kWhite, LV_OPA_COVER);
+    if (fill > 0) draw::rect(layer, bar_x, 136, fill, 6, 3, kRed, LV_OPA_COVER);
+    draw::circle(layer, bar_x + fill, 139, 4, kWhite, LV_OPA_COVER);
 
-    live_cards(layer, palette_, telemetry_, 162, 68);
+    live_cards(layer, palette_, telemetry_, 166, 64);
 }
 
 void DragView::draw_finished(lv_layer_t* layer) {

@@ -51,7 +51,7 @@ Firmware terakhir:
 | Speedometer | 24.325 / 3,0 | 11,9 ms / 60 FPS |
 | Navigasi | 76.800 / 6,0 | 35,6 ms / 28 FPS |
 | GPS clock | 12.377 / 2,0 | 6,5 ms / 60 FPS |
-| Drag idle | 16.377 / 2,0 | 8,3 ms / 60 FPS |
+| Drag idle | 18.231 / 2,0 | 9,1 ms / 60 FPS |
 
 Angka ESP32 adalah model, bukan pengukuran perangkat.
 

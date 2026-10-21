@@ -128,7 +128,7 @@ digambar**, bukan per frame loop. Frame tanpa invalidasi tidak dihitung.
 | Speedometer | 24.325 / 3,0 | 570/570 | 0,49 ms | 0,88 ms | 11,9 ms / 60 FPS |
 | Navigasi | 76.800 / 6,0 | 271/570 | 0,58 ms | 1,50 ms | 35,6 ms / 28 FPS |
 | GPS clock | 12.377 / 2,0 | 570/570 | 0,13 ms | 0,29 ms | 6,5 ms / 60 FPS |
-| Drag (idle) | 16.377 / 2,0 | 71/570 | 0,03 ms | 0,16 ms | 8,3 ms / 60 FPS |
+| Drag (idle) | 18.231 / 2,0 | 71/570 | 0,03 ms | 0,16 ms | 9,1 ms / 60 FPS |
 
 Navigasi menginvalidasi seluruh peta, tetapi hanya 30 kali per detik. Pada SPI 40 MHz
 satu frame penuh 320x240 RGB565 butuh sekitar 30,7 ms hanya untuk transfer, sehingga

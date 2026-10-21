@@ -24,10 +24,10 @@ void panel_card(lv_layer_t* layer, const Palette& p, int x, int y, int w, int h)
 void stat_card(lv_layer_t* layer, const Palette& p, int x, int y, int w, int h,
                const char* label, const char* value, const char* unit) {
     panel_card(layer, p, x, y, w, h);
-    draw::text(layer, label, &font_ui_10, kMuted, x + 10, y + 8, draw::Align::Left, 1);
-    draw::text(layer, value, &font_ui_20, kWhite, x + 10, y + 22, draw::Align::Left, 0);
-    const int32_t vw = draw::text_width(value, &font_ui_20, 0);
-    draw::text(layer, unit, &font_ui_10, kMuted, x + 10 + vw + 4, y + 30, draw::Align::Left, 0);
+    draw::text(layer, label, &font_ui_10, kMuted, x + 8, y + 7, draw::Align::Left, 1);
+    draw::text(layer, value, &font_ui_12, kWhite, x + 8, y + 22, draw::Align::Left, 0);
+    const int32_t vw = draw::text_width(value, &font_ui_12, 0);
+    draw::text(layer, unit, &font_ui_10, kMuted, x + 8 + vw + 3, y + 28, draw::Align::Left, 0);
 }
 
 } // namespace
@@ -156,12 +156,13 @@ void GpsClockView::draw_compass(lv_layer_t* layer) {
 void GpsClockView::draw_stats(lv_layer_t* layer) {
     // Kartu ketinggian dengan ikon gunung sederhana.
     panel_card(layer, palette_, 240, 34, 72, 98);
-    draw::text_in(layer, "ALTITUDE", &font_ui_10, kMuted, 276, 46, draw::Align::Center, 1);
+    draw::text_in(layer, "ALTITUDE", &font_ui_10, kMuted, 276, 44, draw::Align::Center, 1);
     char alt[16];
-    std::snprintf(alt, sizeof(alt), "%.0f m", telemetry_.altitude_m);
-    draw::text_in(layer, alt, &font_ui_20, kWhite, 276, 66, draw::Align::Center, 0);
-    draw::triangle(layer, 252.0f, 120.0f, 268.0f, 96.0f, 284.0f, 120.0f, kMuted, LV_OPA_50);
-    draw::triangle(layer, 268.0f, 120.0f, 278.0f, 106.0f, 288.0f, 120.0f, kMuted, LV_OPA_COVER);
+    std::snprintf(alt, sizeof(alt), "%.0f", telemetry_.altitude_m);
+    draw::text_in(layer, alt, &font_ui_12, kWhite, 268, 60, draw::Align::Center, 0);
+    draw::text_in(layer, "m", &font_ui_10, kMuted, 288, 61, draw::Align::Center, 0);
+    draw::triangle(layer, 252.0f, 120.0f, 268.0f, 100.0f, 284.0f, 120.0f, kMuted, LV_OPA_50);
+    draw::triangle(layer, 266.0f, 120.0f, 276.0f, 108.0f, 286.0f, 120.0f, kMuted, LV_OPA_COVER);
 
     // Baris statistik bawah.
     char trip[16];
