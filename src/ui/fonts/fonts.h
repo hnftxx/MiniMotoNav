@@ -7,6 +7,8 @@ extern "C" {
 #endif
 
 LV_FONT_DECLARE(font_speed_58)
+LV_FONT_DECLARE(font_timer_46)
+LV_FONT_DECLARE(font_count_96)
 LV_FONT_DECLARE(font_ui_10)
 LV_FONT_DECLARE(font_ui_12)
 LV_FONT_DECLARE(font_ui_16)

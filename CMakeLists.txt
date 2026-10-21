@@ -20,12 +20,19 @@ set_property(TARGET lvgl PROPERTY INTERFACE_COMPILE_DEFINITIONS "")
 
 set(SHARED_SOURCES
     src/app/moto_telemetry.cpp
+    src/app/drag_session.cpp
+    src/app/perf_model.cpp
+    src/app/moto_command.cpp
     src/app/moto_app.cpp
     src/ui/ui_speedo.cpp
     src/ui/ui_nav.cpp
+    src/ui/ui_drag.cpp
+    src/ui/ui_gps_clock.cpp
     src/ui/ui_controls.cpp
     src/ui/ui_draw.cpp
     src/ui/fonts/font_speed_58.c
+    src/ui/fonts/font_timer_46.c
+    src/ui/fonts/font_count_96.c
     src/ui/fonts/font_ui_10.c
     src/ui/fonts/font_ui_12.c
     src/ui/fonts/font_ui_16.c
@@ -68,3 +75,24 @@ if(MSVC)
     target_compile_options(telemetry_tests PRIVATE /O2 /utf-8)
 endif()
 add_test(NAME telemetry_tests COMMAND telemetry_tests)
+
+add_executable(drag_tests tests/drag_tests.cpp src/app/drag_session.cpp)
+target_include_directories(drag_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+if(MSVC)
+    target_compile_options(drag_tests PRIVATE /O2 /utf-8)
+endif()
+add_test(NAME drag_tests COMMAND drag_tests)
+
+add_executable(perf_tests tests/perf_tests.cpp src/app/perf_model.cpp)
+target_include_directories(perf_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+if(MSVC)
+    target_compile_options(perf_tests PRIVATE /O2 /utf-8)
+endif()
+add_test(NAME perf_tests COMMAND perf_tests)
+
+add_executable(command_tests tests/command_tests.cpp src/app/moto_command.cpp)
+target_include_directories(command_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+if(MSVC)
+    target_compile_options(command_tests PRIVATE /O2 /utf-8)
+endif()
+add_test(NAME command_tests COMMAND command_tests)

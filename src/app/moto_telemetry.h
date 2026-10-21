@@ -14,6 +14,11 @@ struct Telemetry {
     int gear = 1;
     bool running = false;
     bool auto_drive = true;
+    bool gps_fix = true;
+    int gps_sats = 11;
+    float gps_accuracy_m = 2.4f;
+    float altitude_m = 1240.0f;
+    float heading_deg = 32.0f;
 };
 
 class TelemetrySim {
@@ -27,6 +32,10 @@ public:
     void setAutoDrive(bool automatic);
     bool autoDrive() const { return data_.auto_drive; }
 
+    void setDragMode(bool enabled);
+    bool dragMode() const { return drag_mode_; }
+    void beginDragRun();
+
     void setManualSpeed(float kph);
     void setManualThrottle(float percent);
     void setManualRpm(float rpm);
@@ -37,6 +46,7 @@ private:
     float scenarioTarget(float t) const;
     void updateAuto(float dt);
     void updateManual(float dt);
+    void updateDrag(float dt);
 
     Telemetry data_;
     float time_s_ = 0.0f;
@@ -44,6 +54,8 @@ private:
     float manual_throttle_ = 62.0f;
     float manual_rpm_ = 5340.0f;
     float smooth_target_ = 0.0f;
+    float drag_time_s_ = 0.0f;
+    bool drag_mode_ = false;
 };
 
 } // namespace moto

@@ -5,6 +5,8 @@
 
 #include "lvgl.h"
 
+#include "app/moto_types.h"
+#include "app/perf_model.h"
 #include "ui/ui_theme.h"
 
 struct SDL_Window;
@@ -21,8 +23,14 @@ struct SimOptions {
     bool bench = false;
     bool screenshot = false;
     Theme start_theme = Theme::Race;
-    bool start_nav = false;
+    AppMode start_mode = AppMode::Speedo;
+    bool drag_armed = false;
+    float drag_target = 400.0f;
+    float drag_split = 1000.0f;
+    uint32_t drag_countdown_ms = 3000;
     bool show_controls = false;
+    PerfProfile perf_profile = PerfProfile::Balanced;
+    HardwareProfile hardware{};
     int bench_frames = 600;
     int warmup = 150;
     float preview_speed = 78.0f;
@@ -41,6 +49,7 @@ private:
     static uint32_t tick_cb();
 
     void handle_events(bool& quit);
+    void handle_key(int key, bool repeat);
     void present();
     void capture_screenshot();
     void print_benchmark();
@@ -69,6 +78,16 @@ private:
     double bench_frame_max_ = 0.0;
     double bench_render_max_ = 0.0;
     int bench_frames_ = 0;
+    double bench_pixels_sum_ = 0.0;
+    double bench_rects_sum_ = 0.0;
+    int bench_draw_frames_ = 0;
+    uint32_t bench_last_frame_ = UINT32_MAX;
+
+    HardwareProfile hardware_{};
+    HardwareEstimate hardware_estimate_{};
+    uint64_t frame_pixels_ = 0;
+    uint32_t frame_rects_ = 0;
+    uint32_t frame_index_ = 0;
 };
 
 } // namespace moto

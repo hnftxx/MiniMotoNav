@@ -33,6 +33,9 @@ double percentile(std::vector<double> values, double p) {
 bool SimPlatform::init(const SimOptions& options, MotoApp* app) {
     options_ = options;
     app_ = app;
+    hardware_ = options.hardware;
+    if (hardware_.spi_hz == 0) hardware_ = make_profile(options_.perf_profile);
+    hardware_.preset = options_.perf_profile;
 
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
         std::fprintf(stderr, "SDL_Init failed: %s\n", SDL_GetError());
@@ -95,13 +98,22 @@ bool SimPlatform::init(const SimOptions& options, MotoApp* app) {
 
     app_->init();
     app_->setTheme(options_.start_theme);
-    if (options_.start_nav) app_->toggleMode();
+    app_->dragSession().setTargetDistance(options_.drag_target);
+    app_->dragSession().setSplitInterval(options_.drag_split);
+    app_->dragSession().setCountdownMs(options_.drag_countdown_ms);
+    if (options_.start_mode != AppMode::Speedo) {
+        app_->setMode(options_.start_mode, !options_.bench);
+    }
     if (options_.show_controls) app_->toggleControls();
     if (options_.screenshot) {
-        app_->toggleAuto();
-        app_->setManualSpeed(options_.preview_speed);
-        app_->setManualThrottle(62.0f);
-        app_->setManualRpm(5340.0f);
+        if (options_.start_mode == AppMode::Drag) {
+            if (options_.drag_armed) app_->toggleDragRun();
+        } else {
+            app_->toggleAuto();
+            app_->setManualSpeed(options_.preview_speed);
+            app_->setManualThrottle(62.0f);
+            app_->setManualRpm(5340.0f);
+        }
     }
 
     return true;
@@ -126,6 +138,7 @@ int SimPlatform::run() {
     while (!quit) {
         handle_events(quit);
         if (quit) break;
+        app_->pollCommands();
 
         const uint64_t now = SDL_GetPerformanceCounter();
         double real_ms = (double)(now - last) * 1000.0 / (double)g_tick_freq;
@@ -138,7 +151,8 @@ int SimPlatform::run() {
         fps_ = 1000.0f / std::max(1.0f, frame_ms_);
         app_->setPerf(fps_, frame_ms_, render_ms_, worst_ms_);
 
-        float dt = options_.screenshot ? (float)(fixed_ms / 1000.0) : (float)(real_ms / 1000.0);
+        float dt = (options_.screenshot || options_.bench) ? (float)(fixed_ms / 1000.0)
+                                                           : (float)(real_ms / 1000.0);
         if (dt > 0.1f) dt = 0.1f;
 
         app_->update(dt);
@@ -154,6 +168,16 @@ int SimPlatform::run() {
         if (worst_ring.size() > 120) worst_ring.erase(worst_ring.begin());
         worst_ms_ = (float)*std::max_element(worst_ring.begin(), worst_ring.end());
         app_->setPerf(fps_, frame_ms_, render_ms_, worst_ms_);
+
+        if (options_.bench && frame_index_ > (uint32_t)stat_skip &&
+            frame_index_ != bench_last_frame_) {
+            bench_last_frame_ = frame_index_;
+            if (hardware_estimate_.pixels > 0) {
+                bench_pixels_sum_ += hardware_estimate_.pixels;
+                bench_rects_sum_ += hardware_estimate_.rects;
+                bench_draw_frames_++;
+            }
+        }
 
         SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
         SDL_RenderClear(renderer_);
@@ -236,53 +260,58 @@ void SimPlatform::handle_events(bool& quit) {
             if (e.window.event == SDL_WINDOWEVENT_LEAVE) mouse_down_ = false;
             break;
         case SDL_KEYDOWN:
-            switch (e.key.keysym.sym) {
-            case SDLK_ESCAPE:
+            if (e.key.keysym.sym == SDLK_ESCAPE) {
                 quit = true;
-                break;
-            case SDLK_SPACE:
-                if (!e.key.repeat) app_->togglePause();
-                break;
-            case SDLK_n:
-                if (!e.key.repeat) app_->toggleMode();
-                break;
-            case SDLK_t:
-                if (!e.key.repeat) app_->toggleTheme();
-                break;
-            case SDLK_c:
-                if (!e.key.repeat) app_->toggleControls();
-                break;
-            case SDLK_f:
-                if (!e.key.repeat) app_->toggleFps();
-                break;
-            case SDLK_r:
-                if (!e.key.repeat) app_->resetSim();
-                break;
-            case SDLK_UP:
-                app_->adjustSpeed(5.0f);
-                break;
-            case SDLK_DOWN:
-                app_->adjustSpeed(-5.0f);
-                break;
-            case SDLK_RIGHT:
-                app_->adjustThrottle(5.0f);
-                break;
-            case SDLK_LEFT:
-                app_->adjustThrottle(-5.0f);
-                break;
-            case SDLK_w:
-                app_->adjustRpm(250.0f);
-                break;
-            case SDLK_s:
-                app_->adjustRpm(-250.0f);
-                break;
-            default:
-                break;
+            } else {
+                handle_key(e.key.keysym.sym, e.key.repeat != 0);
             }
             break;
         default:
             break;
         }
+    }
+}
+
+void SimPlatform::handle_key(int key, bool repeat) {
+    switch (key) {
+    case SDLK_SPACE:
+        if (!repeat) app_->togglePause();
+        break;
+    case SDLK_n:
+        if (!repeat) app_->toggleMode();
+        break;
+    case SDLK_t:
+        if (!repeat) app_->toggleTheme();
+        break;
+    case SDLK_c:
+        if (!repeat) app_->toggleControls();
+        break;
+    case SDLK_f:
+        if (!repeat) app_->toggleFps();
+        break;
+    case SDLK_r:
+        if (!repeat) app_->resetSim();
+        break;
+    case SDLK_UP:
+        app_->adjustSpeed(5.0f);
+        break;
+    case SDLK_DOWN:
+        app_->adjustSpeed(-5.0f);
+        break;
+    case SDLK_RIGHT:
+        app_->adjustThrottle(5.0f);
+        break;
+    case SDLK_LEFT:
+        app_->adjustThrottle(-5.0f);
+        break;
+    case SDLK_w:
+        app_->adjustRpm(250.0f);
+        break;
+    case SDLK_s:
+        app_->adjustRpm(-250.0f);
+        break;
+    default:
+        break;
     }
 }
 
@@ -330,6 +359,32 @@ void SimPlatform::print_benchmark() {
                 "max_render=%.3f ms fps=%.1f\n",
                 bench_frames_, bench_frame_sum_, bench_render_sum_, bench_frame_max_,
                 bench_render_max_, bench_frame_sum_ > 0.0 ? 1000.0 / bench_frame_sum_ : 0.0);
+
+    const int draw_frames = bench_draw_frames_ > 0 ? bench_draw_frames_ : 1;
+    FrameWork avg;
+    avg.pixels = (uint32_t)std::lround(bench_pixels_sum_ / (double)draw_frames);
+    avg.rects = (uint16_t)std::lround(bench_rects_sum_ / (double)draw_frames);
+    std::printf("[bench-hw] dirty=%u px/%.1f rects  drawn=%d/%d frames  spi=%.1f MHz  "
+                "buffer=%u lines  measured=%s\n",
+                avg.pixels, (double)avg.rects, bench_draw_frames_, bench_frames_,
+                hardware_.spi_hz / 1000000.0, hardware_.buffer_lines,
+                hardware_.dma ? "dma" : "blocking");
+
+    const PerfProfile presets[] = {PerfProfile::Conservative, PerfProfile::Balanced,
+                                   PerfProfile::Optimistic};
+    for (PerfProfile preset : presets) {
+        const HardwareProfile profile = make_profile(preset);
+        const HardwareEstimate estimate = estimate_frame(profile, avg);
+        std::printf("[bench-hw] %-12s %.1f MHz  frame=%.2f ms  fps=%.1f  spi=%.2f ms  "
+                    "cpu=%.2f ms  late=%.1f%%\n",
+                    profile_name(preset), profile.spi_hz / 1000000.0, estimate.frame_ms,
+                    estimate.fps, estimate.spi_ms, estimate.cpu_ms, estimate.drop_pct);
+    }
+    const HardwareEstimate current = estimate_frame(hardware_, avg);
+    std::printf("[bench-hw] %-12s %.1f MHz  frame=%.2f ms  fps=%.1f  spi=%.2f ms  "
+                "cpu=%.2f ms  late=%.1f%%\n",
+                profile_name(options_.perf_profile), hardware_.spi_hz / 1000000.0,
+                current.frame_ms, current.fps, current.spi_ms, current.cpu_ms, current.drop_pct);
 }
 
 void SimPlatform::shutdown() {
@@ -344,13 +399,27 @@ void SimPlatform::shutdown() {
 
 void SimPlatform::flush_cb(lv_display_t* disp, const lv_area_t* area, uint8_t* px_map) {
     auto* self = static_cast<SimPlatform*>(lv_display_get_user_data(disp));
-    if (self && self->texture_) {
+    const int w = area->x2 - area->x1 + 1;
+    const int h = area->y2 - area->y1 + 1;
+    if (self && self->texture_ && w > 0 && h > 0) {
         SDL_Rect r;
         r.x = area->x1;
         r.y = area->y1;
-        r.w = area->x2 - area->x1 + 1;
-        r.h = area->y2 - area->y1 + 1;
-        SDL_UpdateTexture(self->texture_, &r, px_map, kWidth * kBytesPerPixel);
+        r.w = w;
+        r.h = h;
+        SDL_UpdateTexture(self->texture_, &r, px_map, w * kBytesPerPixel);
+        self->frame_pixels_ += (uint64_t)w * (uint64_t)h;
+        self->frame_rects_++;
+    }
+    if (self && lv_display_flush_is_last(disp)) {
+        FrameWork work;
+        work.pixels = (uint32_t)std::min<uint64_t>(self->frame_pixels_, 0xFFFFFFFFu);
+        work.rects = (uint16_t)std::min<uint32_t>(self->frame_rects_, 65535u);
+        self->hardware_estimate_ = estimate_frame(self->hardware_, work, self->frame_index_);
+        if (self->app_) self->app_->setHardwareEstimate(self->hardware_estimate_);
+        self->frame_pixels_ = 0;
+        self->frame_rects_ = 0;
+        self->frame_index_++;
     }
     lv_display_flush_ready(disp);
 }

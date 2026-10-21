@@ -1,5 +1,6 @@
 #include "ui/ui_speedo.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -31,6 +32,40 @@ int ipow10(int p) {
     int v = 1;
     while (p-- > 0) v *= 10;
     return v;
+}
+
+void arc_bounds(int cx, int cy, int r_in, int r_out, float a0, float a1, lv_area_t& out) {
+    out.x1 = cx - r_out;
+    out.y1 = cy - r_out;
+    out.x2 = cx + r_out;
+    out.y2 = cy + r_out;
+    bool first = true;
+    const int steps = std::max(2, (int)std::ceil(std::fabs(a1 - a0) / 8.0f));
+    for (int i = 0; i <= steps; ++i) {
+        const float a = a0 + (a1 - a0) * ((float)i / (float)steps);
+        const float rad = a * 0.01745329252f;
+        const float c = std::cos(rad);
+        const float s = std::sin(rad);
+        for (int ri = 0; ri < 2; ++ri) {
+            const int r = ri == 0 ? r_in : r_out;
+            const int32_t x = cx + (int32_t)std::lround(c * (float)r);
+            const int32_t y = cy + (int32_t)std::lround(s * (float)r);
+            if (first) {
+                out.x1 = out.x2 = x;
+                out.y1 = out.y2 = y;
+                first = false;
+            } else {
+                out.x1 = std::min(out.x1, x);
+                out.y1 = std::min(out.y1, y);
+                out.x2 = std::max(out.x2, x);
+                out.y2 = std::max(out.y2, y);
+            }
+        }
+    }
+    out.x1 -= 14;
+    out.y1 -= 14;
+    out.x2 += 14;
+    out.y2 += 14;
 }
 
 } // namespace
@@ -82,6 +117,10 @@ void SpeedoView::digit_draw_cb(lv_event_t* e) {
 }
 
 void SpeedoView::update(const Telemetry& t, const PerfStats& perf, const Clock& clock, float dt) {
+    const float prev_speed = telemetry_.speed_kph;
+    const int prev_clock = clock_.hour_minute();
+    const float prev_trip = telemetry_.trip_km;
+
     telemetry_ = t;
     perf_ = perf;
     clock_ = clock;
@@ -93,7 +132,38 @@ void SpeedoView::update(const Telemetry& t, const PerfStats& perf, const Clock& 
     const int value = (int)std::lround(display_speed_ < 0.0f ? 0.0f : display_speed_);
     update_digits(value, dt);
     shown_value_ = value;
-    lv_obj_invalidate(root_);
+
+    bool digits_animating = false;
+    for (const auto& d : digits_) {
+        if (d.active &&
+            (d.progress < 0.999f || std::fabs(d.x - d.target_x) > 0.2f)) {
+            digits_animating = true;
+        }
+    }
+    if (std::fabs(t.speed_kph - prev_speed) > 0.03f) {
+        float a0 = kAngleStart + kAngleSweep * clamp01(prev_speed / kMaxSpeed);
+        float a1 = kAngleStart + kAngleSweep * clamp01(t.speed_kph / kMaxSpeed);
+        if (a1 < a0) std::swap(a0, a1);
+        lv_area_t area;
+        arc_bounds(kGaugeCx, kGaugeCy, kGaugeR - 12, kGaugeR + 12, a0, a1, area);
+        lv_obj_invalidate_area(root_, &area);
+    }
+    if (digits_animating) {
+        lv_area_t area{92, 68, 228, 154};
+        lv_obj_invalidate_area(root_, &area);
+    }
+    if (clock.hour_minute() != prev_clock) {
+        lv_area_t area{246, 4, 318, 28};
+        lv_obj_invalidate_area(root_, &area);
+    }
+    if (std::fabs(t.trip_km - prev_trip) > 0.001f) {
+        lv_area_t area{116, 162, 204, 180};
+        lv_obj_invalidate_area(root_, &area);
+    }
+    lv_area_t panel_left{8, 182, 152, 232};
+    lv_area_t panel_right{152, 182, 311, 232};
+    lv_obj_invalidate_area(root_, &panel_left);
+    lv_obj_invalidate_area(root_, &panel_right);
 }
 
 void SpeedoView::update_digits(int value, float dt) {

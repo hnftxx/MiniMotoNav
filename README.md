@@ -5,7 +5,8 @@ sama untuk **Windows (SDL2)** dan **ESP32-S3 N16R8 + ILI9341 320x240**.
 
 Fokus utama: animasi halus 60 FPS, angka kecepatan besar yang bergulir, gauge putih-merah
 dengan zona merah, panel RPM/throttle bergaya racing, peta vektor dengan rute dan instruksi
-belok, serta tiga tema: race (default), siang, dan malam.
+belok, drag strip dengan countdown/split/PB, GPS clock, serta tiga tema: race (default),
+siang, dan malam.
 
 | Race - speedometer | Race - navigasi |
 |---|---|
@@ -19,21 +20,35 @@ belok, serta tiga tema: race (default), siang, dan malam.
 |---|---|
 | ![Navigasi siang](shots/day_nav.png) | ![Navigasi malam](shots/night_nav.png) |
 
+| Drag countdown | Drag running |
+|---|---|
+| ![Drag countdown](shots/drag_countdown.png) | ![Drag running](shots/drag_running.png) |
+
+| Drag finish | GPS clock |
+|---|---|
+| ![Drag finish](shots/drag_finish.png) | ![GPS clock](shots/gps_clock.png) |
+
 ![Panel kontrol](shots/controls.png)
 
 ## Fitur
 
 - Speedometer full-custom: gauge 0-160 km/h dengan zona merah 120-160, cincin dalam,
-  indikator GPS hijau, angka 3 digit dengan transisi geser/crossfade per digit, trip,
+  label GPS ON hijau, angka 3 digit dengan transisi geser/crossfade per digit, trip,
   serta bar throttle dan RPM putih-merah.
 - Navigasi full-custom: peta vektor berputar mengikuti heading, rute dengan chevron,
   puck kendaraan, kartu instruksi belok, kompas, DIST/TIME/ETA.
+- Drag strip: countdown 3-2-1-GO, elapsed time, kecepatan, progress target, split per
+  interval, PB/riwayat, dan uji akselerasi 0-60/0-100 km/h.
+- GPS clock: jam lokal, kompas/heading, altitude, kecepatan, trip, dan akurasi GPS.
 - Tema race, siang, dan malam dengan transisi halus (bukan ganti warna mendadak).
 - Telemetri simulasi: siklus skenario kota 124 detik, gearbox 6 percepatan, atau mode
   manual lewat panel kontrol.
 - Overlay kontrol (slider + tombol) di `lv_layer_top()`, bisa dipakai dengan mouse.
-- FPS dan render time nyata ditampilkan di layar navigasi (bisa disembunyikan).
-- Screenshot dan benchmark frame time dari command line.
+- Redraw selektif: hanya area yang berubah (gauge, digit, kartu statistik, jam) yang
+  diinvalidasi; peta navigasi tetap full-frame tetapi dibatasi 30 FPS.
+- FPS PC, FPS ESP32 model, frame time, SPI time, jitter, dan drop ditampilkan terpisah
+  di layar navigasi (bisa disembunyikan).
+- Screenshot dan benchmark frame time + model ESP32 dari command line.
 
 ## Build simulator (Windows)
 
@@ -58,13 +73,22 @@ ctest --test-dir build -C Release --output-on-failure
 
 | Argumen | Fungsi |
 |---|---|
-| `--mode=nav` / `--mode=speedo` | Mulai di layar navigasi / speedometer |
+| `--mode=speedo` / `nav` / `drag` / `gps` | Mulai di speedometer, navigasi, drag strip, atau GPS clock |
+| `--drag-target=M` | Target drag dalam meter (default 400) |
+| `--drag-split=M` | Interval split dalam meter (default 1000) |
+| `--drag-countdown=MS` | Countdown drag dalam milidetik (default 3000) |
 | `--theme=race` / `day` / `night` | Mulai dengan tema race (default), siang, atau malam |
 | `--controls` | Buka panel kontrol saat start |
 | `--scale=N` | Skala jendela 1-6 (default 3 = 960x720) |
 | `--novsync` | Jalankan tanpa batas 60 FPS (untuk uji beban) |
 | `--no-fps` | Sembunyikan penghitung FPS |
-| `--bench=N` | Ukur N frame, cetak avg/p95/max frame + render time |
+| `--profile=conservative` / `balanced` / `optimistic` / `custom` | Preset model performa ESP32 (default balanced) |
+| `--spi=HZ` | Override clock SPI model (default 40 MHz) |
+| `--buffer=LINES` | Override tinggi buffer parsial LVGL (default 40 baris) |
+| `--cpu=US_PER_PX` | Override biaya CPU model per piksel yang di-flush |
+| `--jitter=RATIO` | Override jitter model 0-0.5 |
+| `--dma` | Modelkan DMA overlap dengan double buffer (bukan pengukuran hardware) |
+| `--bench=N` | Ukur N frame, cetak avg/p95/max frame + render time + model ESP32 |
 | `--shot=file.bmp` | Simpan screenshot setelah warm-up |
 | `--speed=N` | Kecepatan untuk screenshot (default 78 km/h) |
 | `--warmup=N` | Jumlah frame sebelum screenshot (default 150) |
@@ -83,38 +107,53 @@ ffmpeg -y -i shots\race_nav.bmp shots\race_nav.png
 | Tombol | Aksi |
 |---|---|
 | `Esc` | Keluar |
-| `Space` | Jalan / pause |
-| `N` | Ganti speedometer / navigasi |
+| `Space` | Jalan / pause; di drag: arm, pause, resume, atau run again |
+| `N` | Ganti mode: speedometer -> navigasi -> drag -> GPS clock |
 | `T` | Ganti tema: race -> siang -> malam -> race |
 | `C` | Buka / tutup panel kontrol |
 | `F` | Tampilkan / sembunyikan FPS (di navigasi) |
-| `R` | Reset simulasi |
+| `R` | Reset simulasi / sesi drag |
 | `Up` / `Down` | Naik/turun kecepatan manual (5 km/h) |
 | `Left` / `Right` | Turun/naik throttle (5%) |
 | `W` / `S` | Naik/turun RPM (250) |
 
 ## Hasil pengukuran simulator
 
-Diukur pada build MSVC Release, 320x240, dengan `--bench` yang memaksa satu render penuh
-per frame (di luar vsync):
+Diukur pada build MSVC Release, 320x240, `--bench=600 --novsync --profile=balanced`.
+`dirty` adalah rata-rata piksel dan rect yang benar-benar di-flush **per frame yang
+digambar**, bukan per frame loop. Frame tanpa invalidasi tidak dihitung.
 
-| Layar | Rata-rata render | p95 render | Rata-rata frame (uncapped) |
-|---|---|---|---|
-| Speedometer | 0.77 ms | 1.03 ms | 0.97 ms |
-| Navigasi | 1.03 ms | 1.45 ms | 1.25 ms |
+| Layar | Dirty px / rects | Frame digambar | Render PC avg | p95 render | Model ESP32 40 MHz |
+|---|---|---|---|---|---|
+| Speedometer | 24.325 / 3,0 | 570/570 | 0,49 ms | 0,88 ms | 11,9 ms / 60 FPS |
+| Navigasi | 76.800 / 6,0 | 271/570 | 0,58 ms | 1,50 ms | 35,6 ms / 28 FPS |
+| GPS clock | 12.377 / 2,0 | 570/570 | 0,13 ms | 0,29 ms | 6,5 ms / 60 FPS |
+| Drag (idle) | 16.377 / 2,0 | 71/570 | 0,03 ms | 0,16 ms | 8,3 ms / 60 FPS |
 
-Loop interaktif dipacu tetap 60 FPS. Indikator FPS (layar navigasi) menunjukkan 60-61 saat aktif.
-Angka di atas adalah hasil PC, **bukan** klaim performa ESP32.
+Navigasi menginvalidasi seluruh peta, tetapi hanya 30 kali per detik. Pada SPI 40 MHz
+satu frame penuh 320x240 RGB565 butuh sekitar 30,7 ms hanya untuk transfer, sehingga
+model 40 MHz membatasi navigasi ke sekitar 28 FPS. Model profil penuh untuk frame
+76.800 px:
+
+| Profil | Frame model | FPS model | SPI | Late |
+|---|---|---|---|---|
+| Conservative 20 MHz | 67,5 ms | 14,8 | 61,8 ms | 75% |
+| Balanced 40 MHz | 35,6 ms | 28,1 | 31,0 ms | 53% |
+| Optimistic 80 MHz | 19,6 ms | 51,0 | 15,5 ms | 15% |
+
+Loop interaktif dipacu tetap 60 FPS. Indikator FPS (layar navigasi) menunjukkan FPS PC
+dan FPS ESP32 model secara terpisah (`PC ... ESP ... FPS`). Angka model adalah estimasi
+deterministik, **bukan** klaim performa ESP32 fisik.
 
 ## Struktur proyek
 
 ```
 src/app/          telemetri simulasi, state aplikasi, tipe performa
-src/ui/           speedometer, navigasi, panel kontrol, drawing helpers
+src/ui/           speedometer, navigasi, drag, GPS clock, panel kontrol, drawing helpers
 src/ui/fonts/     font Montserrat ExtraBold hasil konversi lv_font_conv
 src/platform/     entry point ESP32 (TFT_eSPI)
 sim/              SDL2 platform + main simulator
-tests/            unit test telemetri (CTest)
+tests/            unit test telemetri, drag, perf model, command parser (CTest)
 include/          User_Setup.h untuk TFT_eSPI
 lv_conf.h         konfigurasi LVGL bersama
 CMakeLists.txt    build simulator + test
@@ -159,29 +198,59 @@ pio run -e esp32s3 -t upload
 pio device monitor
 ```
 
+Gunakan port **USB UART** pada DevKitC-1 (bukan port USB native) untuk upload dan
+monitor serial. Jika upload 921600 baud tidak stabil, turunkan `upload_speed` ke
+`460800` di `platformio.ini`.
+
 Konfigurasi memakai LVGL 9.3.0 + TFT_eSPI dari registry PlatformIO, buffer parsial
-320x40 baris, dan flush manual RGB565 (`pushColors(..., true)`).
+320x40 baris, dan flush manual RGB565 (`pushColors(..., true)`). Firmware mencetak
+diagnostik boot (chip, flash, PSRAM, heap) dan statistik refresh per detik di serial.
 
 Status build terakhir (PlatformIO 6.2.0, Arduino core 3.3.12, `pio run -e esp32s3`):
 
 | Memori | Terpakai | Kapasitas | Persentase |
 |---|---|---|---|
-| RAM statis | 50.304 B | 327.680 B | 15,4% |
-| Flash (app) | 681.508 B | 6.553.600 B | 10,4% |
+| RAM statis | 59.712 B | 327.680 B | 18,2% |
+| Flash (app) | 741.228 B | 6.553.600 B | 11,3% |
 
 Angka di atas adalah hasil kompilasi, bukan hasil pengukuran di perangkat.
 
 ### Catatan performa hardware
 
 Firmware ini **belum diuji pada perangkat fisik**. Jangan menganggap 60 FPS di ESP32
-sudah tercapai sebelum diukur. Yang bisa dilakukan setelah flash:
+sudah tercapai sebelum diukur. Setelah flash, buka serial 115200 dan gunakan tombol:
 
-1. Penghitung FPS hanya tampil di layar navigasi. Perangkat belum punya input, jadi untuk melihatnya sementara ubah kode ke layar navigasi.
-2. Jika di bawah 60 FPS, turunkan `kBufferLines` (mis. 20), naikkan
-   `LV_DEF_REFR_PERIOD` ke 16, atau kurangi jumlah segmen gradien gauge (96).
-3. Pastikan SPI 40 MHz stabil. Turunkan ke 27 MHz bila muncul artefak.
-4. Pastikan PSRAM OPI aktif bila memakai board N16R8 (tidak wajib untuk kode ini,
-   karena buffer render berada di RAM internal).
+| Tombol | Aksi |
+|---|---|
+| `n` | Ganti mode: speedometer -> navigasi -> drag -> GPS clock |
+| `t` | Ganti tema race -> siang -> malam -> race |
+| `f` | Tampilkan / sembunyikan overlay FPS |
+| `p` | Pause / jalan |
+| `d` | Arm / pause / resume / run again di drag mode |
+| `r` | Reset simulasi / sesi drag |
+| `?` | Bantuan tombol dan perintah |
+
+Perintah teks diakhiri Enter juga tersedia: `mode nav`, `theme day`, `speed 80`,
+`throttle 60`, `rpm 5000`, `target 400`, `split 200`, `countdown 3000`, `drag`,
+`dragreset`, `pause`, `auto`, `controls`, `fps`, `reset`. Perintah memakai parser yang
+sama dengan simulator.
+
+Firmware mencetak statistik berikut tiap detik:
+
+```text
+[stats] fps=... frame=...ms render=...ms spi=...ms dirty=PX/RECTS worst=...ms heap=...
+```
+
+FPS dihitung dari siklus refresh LVGL termasuk flush,
+bukan dari loop kosong. `spi` adalah rata-rata durasi flush, `dirty` adalah rata-rata
+piksel dan rect per refresh. Overlay navigasi menampilkan label `HW` untuk angka yang
+diukur firmware, bukan `ESP` yang berarti model simulator. Jika PSRAM N16R8 terdeteksi,
+baris boot harus menunjukkan `psram=8MB`; jika `0MB`, konfigurasi OPI belum aktif.
+
+Jika FPS di bawah 60, turunkan `kBufferLines` (mis. 20), naikkan
+`LV_DEF_REFR_PERIOD` ke 16, atau kurangi jumlah segmen gradien gauge (96).
+Pastikan SPI 40 MHz stabil; turunkan ke 27 MHz bila muncul artefak. Buffer render
+berada di RAM internal, jadi PSRAM tidak wajib untuk kode ini.
 
 ## Model telemetri
 
@@ -192,11 +261,23 @@ sudah tercapai sebelum diukur. Yang bisa dilakukan setelah flash:
 - Trip meter terintegrasi dari kecepatan; clock mulai 14:32 dan maju 1 menit per
   60 detik simulasi.
 - Navigasi memakai loop rute sintetis + grid jalan deterministik; bukan GPS nyata.
+- Drag memakai timestamp monotonic, bukan FPS: countdown, elapsed, split, dan finish
+  diinterpolasi dari timestamp. Jarak simulasi diintegrasikan dari kecepatan; data GPS
+  yang tidak valid membekukan jarak dan menandai hasil sebagai tidak reliabel.
+- GPS clock menampilkan jam lokal, heading/kompas, altitude, speed, trip, dan akurasi
+  dari telemetri simulasi.
 
 ## Keterbatasan
 
-- Belum ada input touch pada target ESP32 (panel kontrol hanya di simulator).
+- Belum ada input touch pada target ESP32 (panel kontrol hanya di simulator); layar,
+  tema, drag, dan FPS dapat diganti lewat tombol atau perintah serial.
+- Panel drag di simulator punya preset target 100 m / 200 m / 400 m / 1 km / 2 km dan
+  slider target, countdown, split, serta acceleration test. Nilai ini tidak muncul di
+  firmware tanpa input touch; gunakan perintah `target`, `split`, dan `countdown`.
 - Belum ada GPS/IMU nyata; semua data disimulasikan.
+- Riwayat drag/PB masih in-memory dan hilang saat reboot.
+- Timing drag dirancang untuk closed course; GPS ponsel tidak boleh diklaim
+  memberikan akurasi milidetik.
 - Rute navigasi adalah demo geometris, bukan data peta/OSRM.
 - Performa hardware belum diverifikasi.
 

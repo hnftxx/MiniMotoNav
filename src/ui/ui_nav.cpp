@@ -176,7 +176,11 @@ void NavView::update(const Telemetry& t, const PerfStats& perf, const Clock& clo
     heading_ += angle_delta(heading_, heading_target_) * (1.0f - std::exp(-dt / 0.22f));
 
     update_strings();
-    lv_obj_invalidate(root_);
+    redraw_accum_ += dt;
+    if (redraw_accum_ >= 1.0f / 30.0f) {
+        redraw_accum_ = 0.0f;
+        lv_obj_invalidate(root_);
+    }
 }
 
 void NavView::update_strings() {
@@ -212,9 +216,24 @@ void NavView::update_strings() {
     std::snprintf(eta_, sizeof(eta_), "%02d:%02d", eta_total / 60, eta_total % 60);
 
     if (perf_.visible) {
-        std::snprintf(fps_, sizeof(fps_), "%.0fFPS %.1fMS", perf_.fps, perf_.render_ms);
+        std::snprintf(fps_, sizeof(fps_), "PC %.0fFPS %.1fMS", perf_.fps, perf_.render_ms);
+        if (perf_.hw_valid) {
+            std::snprintf(hw_a_, sizeof(hw_a_), "PC %.0f  %s %.0f FPS", perf_.fps,
+                          perf_.hw_measured ? "HW" : "ESP", perf_.hw_fps);
+            std::snprintf(hw_b_, sizeof(hw_b_), "FRM %.1f  SPI %.1f ms", perf_.hw_frame_ms,
+                          perf_.hw_spi_ms);
+            std::snprintf(hw_c_, sizeof(hw_c_), "JIT %.1f  DROP %.0f%%", perf_.hw_jitter_ms,
+                          perf_.hw_drop_pct);
+        } else {
+            hw_a_[0] = '\0';
+            hw_b_[0] = '\0';
+            hw_c_[0] = '\0';
+        }
     } else {
         fps_[0] = '\0';
+        hw_a_[0] = '\0';
+        hw_b_[0] = '\0';
+        hw_c_[0] = '\0';
     }
 }
 
@@ -441,9 +460,21 @@ void NavView::draw_hud(lv_layer_t* layer) {
     draw::text_in(layer, eta_, &font_ui_16, palette_.panel_text, 260, 217, draw::Align::Center, 0);
 
     if (perf_.visible) {
-        draw::rect(layer, 222, 176, 90, 14, 7, palette_.panel, LV_OPA_70);
-        draw::text(layer, fps_, &font_ui_10, palette_.panel_muted, 306, 178, draw::Align::Right, 0,
-                   LV_OPA_80);
+        if (perf_.hw_valid) {
+            draw::rect(layer, 140, 132, 178, 54, 10, lv_color_black(), LV_OPA_20);
+            draw::rect(layer, 140, 130, 178, 54, 10, palette_.panel, LV_OPA_80);
+            draw::rect_stroke(layer, 140, 130, 178, 54, 10, 1, palette_.panel_edge, LV_OPA_70);
+            draw::text(layer, hw_a_, &font_ui_10, palette_.panel_text, 148, 136,
+                       draw::Align::Left, 0, LV_OPA_90);
+            draw::text(layer, hw_b_, &font_ui_10, palette_.panel_muted, 148, 149,
+                       draw::Align::Left, 0, LV_OPA_90);
+            draw::text(layer, hw_c_, &font_ui_10, palette_.panel_muted, 148, 162,
+                       draw::Align::Left, 0, LV_OPA_90);
+        } else {
+            draw::rect(layer, 202, 176, 110, 14, 7, palette_.panel, LV_OPA_70);
+            draw::text(layer, fps_, &font_ui_10, palette_.panel_muted, 306, 178,
+                       draw::Align::Right, 0, LV_OPA_80);
+        }
     }
 }
 

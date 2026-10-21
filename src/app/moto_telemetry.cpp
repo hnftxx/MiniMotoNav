@@ -32,6 +32,8 @@ void TelemetrySim::reset() {
     data_ = Telemetry{};
     time_s_ = 0.0f;
     smooth_target_ = 0.0f;
+    drag_time_s_ = 0.0f;
+    drag_mode_ = false;
     manual_speed_ = 78.0f;
     manual_throttle_ = 62.0f;
     manual_rpm_ = 5340.0f;
@@ -47,6 +49,29 @@ void TelemetrySim::setAutoDrive(bool automatic) {
         time_s_ = 0.0f;
         smooth_target_ = data_.speed_kph;
     }
+}
+
+void TelemetrySim::setDragMode(bool enabled) {
+    if (drag_mode_ == enabled) return;
+    drag_mode_ = enabled;
+    data_.auto_drive = false;
+    if (enabled) {
+        beginDragRun();
+        data_.running = false;
+    } else {
+        time_s_ = 0.0f;
+        smooth_target_ = data_.speed_kph;
+    }
+}
+
+void TelemetrySim::beginDragRun() {
+    drag_time_s_ = 0.0f;
+    data_.speed_kph = 0.0f;
+    data_.target_kph = 0.0f;
+    data_.throttle = 0.0f;
+    data_.rpm = kIdleRpm;
+    data_.gear = 1;
+    data_.engine_load = 0.0f;
 }
 
 void TelemetrySim::setManualSpeed(float kph) {
@@ -89,7 +114,9 @@ void TelemetrySim::tick(float dt) {
     dt = clampf(dt, 0.0f, 0.1f);
     time_s_ += dt;
 
-    if (data_.auto_drive) {
+    if (drag_mode_) {
+        updateDrag(dt);
+    } else if (data_.auto_drive) {
         updateAuto(dt);
     } else {
         updateManual(dt);
@@ -145,6 +172,32 @@ void TelemetrySim::updateAuto(float dt) {
         wanted_rpm = 2100.0f + within * 6100.0f + data_.throttle * 7.0f;
     }
     data_.rpm = approach(data_.rpm, clampf(wanted_rpm, kIdleRpm, kMaxRpm), 0.10f, dt);
+}
+
+void TelemetrySim::updateDrag(float dt) {
+    drag_time_s_ += dt;
+    const float speed = clampf(data_.speed_kph, 0.0f, 176.0f);
+    const float accel_mps2 = 7.4f * (1.0f - speed / 185.0f);
+    data_.speed_kph = clampf(speed + accel_mps2 * 3.6f * dt, 0.0f, 176.0f);
+    data_.target_kph = 176.0f;
+    data_.throttle = approach(data_.throttle, 99.0f, 0.05f, dt);
+
+    static const float kGearTop[] = {0.0f, 26.0f, 48.0f, 72.0f, 98.0f, 128.0f, 186.0f};
+    int gear = 1;
+    for (int i = 1; i <= 6; ++i) {
+        if (data_.speed_kph <= kGearTop[i]) {
+            gear = i;
+            break;
+        }
+        gear = 6;
+    }
+    data_.gear = gear;
+
+    const float lo = kGearTop[gear - 1];
+    const float hi = kGearTop[gear];
+    const float within = clampf((data_.speed_kph - lo) / std::max(1.0f, hi - lo), 0.0f, 1.0f);
+    const float wanted_rpm = 2100.0f + within * 6800.0f + data_.throttle * 5.0f;
+    data_.rpm = approach(data_.rpm, clampf(wanted_rpm, kIdleRpm, kMaxRpm), 0.08f, dt);
 }
 
 void TelemetrySim::updateManual(float dt) {

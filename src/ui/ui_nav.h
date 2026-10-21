@@ -66,6 +66,7 @@ private:
     float heading_ = 0.0f;
     float heading_target_ = 0.0f;
     float map_time_ = 0.0f;
+    float redraw_accum_ = 0.0f;
 
     char turn_dist_[16] = "250 m";
     char turn_street_[40] = "Jl. Margonda Raya";
@@ -73,6 +74,9 @@ private:
     char remain_time_[16] = "8 min";
     char eta_[16] = "14:40";
     char fps_[24] = "";
+    char hw_a_[32] = "";
+    char hw_b_[32] = "";
+    char hw_c_[32] = "";
     int next_turn_dir_ = 1;
 };
 

@@ -4,11 +4,25 @@
 
 namespace moto {
 
+enum class AppMode { Speedo, Nav, Drag, GpsClock };
+
 struct PerfStats {
     float fps = 0.0f;
     float frame_ms = 0.0f;
     float render_ms = 0.0f;
     float worst_ms = 0.0f;
+    float hw_fps = 0.0f;
+    float hw_frame_ms = 0.0f;
+    float hw_spi_ms = 0.0f;
+    float hw_cpu_ms = 0.0f;
+    float hw_jitter_ms = 0.0f;
+    float hw_drop_pct = 0.0f;
+    uint32_t dirty_pixels = 0;
+    uint32_t spi_hz = 0;
+    uint16_t dirty_rects = 0;
+    bool hw_valid = false;
+    bool hw_dma = false;
+    bool hw_measured = false;
     bool visible = true;
 };
 
