@@ -28,7 +28,7 @@ void text(lv_layer_t* layer, const char* txt, const lv_font_t* font, lv_color_t 
     if (align == Align::Center) x -= size.x / 2;
     else if (align == Align::Right) x -= size.x;
 
-    lv_area_t coords{x, y, x + size.x + 1, y + size.y + 1};
+    lv_area_t coords{x, y, x + size.x + 8, y + size.y + 6};
     lv_draw_label_dsc_t dsc;
     lv_draw_label_dsc_init(&dsc);
     dsc.text = txt;

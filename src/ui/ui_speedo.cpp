@@ -244,9 +244,6 @@ void SpeedoView::draw_header(lv_layer_t* layer) {
     draw::text(layer, clock_buf, &font_ui_20, palette_.ink, 282, 9, draw::Align::Right, 0);
     draw::arc(layer, 304, 16, 8, 2, 220.0f, 320.0f, palette_.ink, LV_OPA_COVER, true);
     draw::circle(layer, 304, 22, 2, palette_.ink, LV_OPA_COVER);
-
-    draw::text(layer, "MODE", &font_ui_10, palette_.warn, 316, 36, draw::Align::Right, 1);
-    draw::text(layer, "SPEED >>", &font_ui_10, palette_.ink, 316, 48, draw::Align::Right, 0);
 }
 
 void SpeedoView::draw_gauge(lv_layer_t* layer) {

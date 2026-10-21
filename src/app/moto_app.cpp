@@ -131,14 +131,18 @@ void MotoApp::update(float dt) {
     if (dt > 0.1f) dt = 0.1f;
 
     now_us_ += (uint64_t)std::llround(dt * 1000000.0f);
-    sim_.tick(dt);
+    if (!feed_active_) sim_.tick(dt);
+
+    const Telemetry& data = telemetry();
+    const bool running = feed_active_ ? (feed_.state().has_telemetry && !feed_.state().stale)
+                                      : sim_.running();
 
     if (mode_ == AppMode::Drag) {
-        drag_.tick(now_us_, sim_.data().speed_kph, sim_.data().gps_fix);
-        sim_.setRunning(drag_.phase() == DragPhase::Running);
+        drag_.tick(now_us_, data.speed_kph, data.gps_fix);
+        if (!feed_active_) sim_.setRunning(drag_.phase() == DragPhase::Running);
     }
 
-    if (sim_.running()) {
+    if (running) {
         clock_accum_s_ += dt;
         while (clock_accum_s_ >= 60.0f) {
             clock_accum_s_ -= 60.0f;
@@ -159,10 +163,10 @@ void MotoApp::update(float dt) {
     gps_view_.setPalette(palette_);
 
     switch (mode_) {
-    case AppMode::Speedo: speedo_.update(sim_.data(), perf_, clock_, dt); break;
-    case AppMode::Nav: nav_.update(sim_.data(), perf_, clock_, dt); break;
-    case AppMode::Drag: drag_view_.update(drag_, sim_.data(), perf_, clock_, dt); break;
-    case AppMode::GpsClock: gps_view_.update(sim_.data(), perf_, clock_, dt); break;
+    case AppMode::Speedo: speedo_.update(data, perf_, clock_, dt); break;
+    case AppMode::Nav: nav_.update(data, perf_, clock_, dt); break;
+    case AppMode::Drag: drag_view_.update(drag_, data, perf_, clock_, dt); break;
+    case AppMode::GpsClock: gps_view_.update(data, perf_, clock_, dt); break;
     }
     if (theme_t_ < 1.0f) {
         lv_obj_t* root = nullptr;
@@ -174,7 +178,33 @@ void MotoApp::update(float dt) {
         }
         if (root) lv_obj_invalidate(root);
     }
-    controls_.refresh(sim_.data(), theme_, mode_, drag_);
+    controls_.refresh(data, theme_, mode_, drag_);
+}
+
+void MotoApp::applyBleTelemetry(const ble::TelemetryFields& fields, uint32_t now_ms) {
+    feed_active_ = true;
+    feed_.applyTelemetry(fields, now_ms);
+}
+
+void MotoApp::applyBleNavigation(const ble::NavigationFields& navigation, uint32_t now_ms) {
+    feed_active_ = true;
+    feed_.applyNavigation(navigation, now_ms);
+}
+
+void MotoApp::setBleLinked(bool linked, uint32_t now_ms) {
+    if (!feed_active_) return;
+    feed_.setLinked(linked, now_ms);
+}
+
+void MotoApp::tickBle(uint32_t now_ms) {
+    if (!feed_active_) return;
+    feed_.tick(now_ms);
+}
+
+void MotoApp::clearBleFeed() {
+    feed_ = DisplayFeed{};
+    feed_active_ = false;
+    sim_.setRunning(true);
 }
 
 void MotoApp::applyPalette() {

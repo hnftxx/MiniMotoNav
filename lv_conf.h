@@ -1,5 +1,5 @@
 /**
- * MiniMotoNav LVGL configuration (works for the SDL simulator and ESP32-S3).
+ * GODSPEED LVGL configuration (works for the SDL simulator and ESP32-S3).
  */
 #ifndef LV_CONF_H
 #define LV_CONF_H

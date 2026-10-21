@@ -1,0 +1,38 @@
+{
+  "sourceVideo": {
+    "w": 848,
+    "h": 464
+  },
+  "frames": 92,
+  "uniqueFrames": 56,
+  "ticks": 92,
+  "sourceRawBytes": 14131200,
+  "rawBytes": 8601600,
+  "fullRleBytes": 1382736,
+  "deltaRleBytes": 1407358,
+  "deltaLiteralBytes": 1544296,
+  "avgDeltaPixels": 10359,
+  "avgDirtyBboxPixels": 28203,
+  "maxDirtyBboxPixels": 45120,
+  "minDeltaPixels": 90,
+  "maxDeltaPixels": 25120,
+  "logoSource": {
+    "w": 1254,
+    "h": 1254
+  },
+  "logoBBox": {
+    "x": 101,
+    "y": 410,
+    "w": 1051,
+    "h": 387
+  },
+  "logo320": {
+    "w": 300,
+    "h": 110,
+    "pngBytes": 28030,
+    "rleBytes": 30996
+  },
+  "cppBytes": 4766721,
+  "output": "C:\\Users\\PC\\Downloads\\Project Speedo\\src\\boot\\boot_assets.cpp",
+  "logoOutput": "C:\\Users\\PC\\Downloads\\Project Speedo\\assets\\godspeed_logo_320.png"
+}

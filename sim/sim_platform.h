@@ -22,6 +22,10 @@ struct SimOptions {
     bool vsync = true;
     bool bench = false;
     bool screenshot = false;
+    bool boot = true;
+    bool boot_explicit = false;
+    int boot_frame = 30;
+    std::string boot_shot_path;
     Theme start_theme = Theme::Race;
     AppMode start_mode = AppMode::Speedo;
     bool drag_armed = false;
@@ -51,6 +55,9 @@ private:
     void handle_events(bool& quit);
     void handle_key(int key, bool repeat);
     void present();
+    bool playBoot(bool& quit);
+    void drawBoot(const uint16_t* pixels);
+    void saveScreenshot(const std::string& path);
     void capture_screenshot();
     void print_benchmark();
 
@@ -61,8 +68,6 @@ private:
     SDL_Texture* texture_ = nullptr;
     lv_display_t* display_ = nullptr;
     lv_indev_t* indev_ = nullptr;
-
-    std::string bmp_path_;
 
     int mouse_x_ = 0;
     int mouse_y_ = 0;

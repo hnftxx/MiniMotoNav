@@ -11,6 +11,11 @@ struct Telemetry {
     float rpm = 1300.0f;     // engine rpm
     float trip_km = 0.0f;
     float engine_load = 0.0f; // 0..1, drives the throttle bar shimmer
+    float afr = 0.0f;
+    float engine_temp_c = 0.0f;
+    float intake_temp_c = 0.0f;
+    float battery_volts = 0.0f;
+    float advance_deg = 0.0f;
     int gear = 1;
     bool running = false;
     bool auto_drive = true;

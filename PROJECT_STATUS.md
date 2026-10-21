@@ -1,10 +1,10 @@
 # Project Status
 
-Terakhir diperbarui: 2026-10-21
+Terakhir diperbarui: 2026-10-22
 
 ## Ringkasan
 
-MiniMotoNav menyatukan satu UI LVGL 9 untuk simulator Windows (SDL2) dan firmware
+GODSPEED menyatukan satu UI LVGL 9 untuk simulator Windows (SDL2) dan firmware
 ESP32-S3 N16R8 + ILI9341 320x240. Empat mode aktif: speedometer, navigasi, drag strip,
 dan GPS clock. Simulator dan firmware memakai `src/app` + `src/ui` yang sama.
 
@@ -12,16 +12,16 @@ dan GPS clock. Simulator dan firmware memakai `src/app` + `src/ui` yang sama.
 
 | Target | Status | Keterangan |
 |---|---|---|
-| Simulator MSVC Release | Lulus | `cmake --build build --config Release` |
-| Unit test CTest | Lulus 4/4 | `telemetry_tests`, `drag_tests`, `perf_tests`, `command_tests` |
-| Firmware `pio run -e esp32s3` | Lulus | PlatformIO 6.2.0, Arduino 3.3.12 |
+| Simulator MSVC Release | Lulus | `cmake --build build --config Release --target GODSPEED` |
+| Unit test CTest | Lulus 6/6 | telemetry, drag, perf, command, BLE, boot |
+| Firmware `pio run -e esp32s3` | Lulus | PlatformIO, Arduino core 3.3.12 |
 
 Firmware terakhir:
 
 | Memori | Terpakai | Kapasitas | Persentase |
 |---|---|---|---|
-| RAM statis | 59.712 B | 327.680 B | 18,2% |
-| Flash (app) | 741.228 B | 6.553.600 B | 11,3% |
+| RAM statis | 70.416 B | 327.680 B | 21,5% |
+| Flash (app) | 2.460.467 B | 6.553.600 B | 37,5% |
 
 ## Yang sudah diimplementasikan
 
@@ -41,6 +41,10 @@ Firmware terakhir:
   memakai tombol dan perintah serial.
 - Firmware mengukur FPS refresh, durasi flush SPI, piksel/rect dirty, render time,
   worst render, dan heap per detik.
+- Animasi startup GODSPEED bersama: 56 frame unik / 92 tick @30 FPS, delta+RLE
+  1.407.358 B, logo fallback 30.996 B, framebuffer RGB565 153.600 B. Simulator memakai
+  `--boot` / `--no-boot` / `--boot-shot` / `--boot-frame`; firmware memutar animasi
+  setelah `app.init()` dan sebelum `ble.begin()`.
 
 ## Benchmark singkat
 
@@ -58,7 +62,8 @@ Angka ESP32 adalah model, bukan pengukuran perangkat.
 ## Belum diverifikasi / keterbatasan
 
 - Tidak ada perangkat ESP32 fisik pada sesi ini. Stabilitas panel, integritas SPI
-  40 MHz, deteksi PSRAM, FPS nyata, dan perilaku GPS belum diukur.
+  40 MHz, deteksi PSRAM, FPS nyata, perilaku GPS, dan animasi startup di panel belum
+  diukur.
 - Klaim 60 FPS di ESP32 tidak boleh dibuat sebelum pengukuran serial.
 - Satu frame penuh 320x240 RGB565 pada 40 MHz membutuhkan sekitar 30,7 ms transfer;
   navigasi full-frame karena itu tidak mungkin 60 FPS tanpa memperkecil area atau

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(MiniMotoNav C CXX)
+project(GODSPEED C CXX)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
@@ -23,7 +23,11 @@ set(SHARED_SOURCES
     src/app/drag_session.cpp
     src/app/perf_model.cpp
     src/app/moto_command.cpp
+    src/app/moto_ble_protocol.cpp
+    src/app/display_feed.cpp
     src/app/moto_app.cpp
+    src/boot/boot_assets.cpp
+    src/boot/boot_player.cpp
     src/ui/ui_speedo.cpp
     src/ui/ui_nav.cpp
     src/ui/ui_drag.cpp
@@ -39,33 +43,33 @@ set(SHARED_SOURCES
     src/ui/fonts/font_ui_20.c
 )
 
-add_executable(MiniMotoNav
+add_executable(GODSPEED
     sim/main.cpp
     sim/sim_platform.cpp
     ${SHARED_SOURCES}
 )
 
-target_include_directories(MiniMotoNav PRIVATE
+target_include_directories(GODSPEED PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/SDL2/include
 )
 
-target_compile_definitions(MiniMotoNav PRIVATE SDL_MAIN_HANDLED)
-target_link_libraries(MiniMotoNav PRIVATE
+target_compile_definitions(GODSPEED PRIVATE SDL_MAIN_HANDLED)
+target_link_libraries(GODSPEED PRIVATE
     lvgl
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/SDL2/lib/x64/SDL2.lib
 )
 
 if(MSVC)
-    target_compile_options(MiniMotoNav PRIVATE /O2 /Gy /utf-8)
+    target_compile_options(GODSPEED PRIVATE /O2 /Gy /utf-8)
     target_compile_options(lvgl PRIVATE /O2)
-    set_property(TARGET MiniMotoNav PROPERTY LINK_FLAGS "/SUBSYSTEM:CONSOLE")
+    set_property(TARGET GODSPEED PROPERTY LINK_FLAGS "/SUBSYSTEM:CONSOLE")
 endif()
 
-add_custom_command(TARGET MiniMotoNav POST_BUILD
+add_custom_command(TARGET GODSPEED POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_CURRENT_SOURCE_DIR}/third_party/SDL2/lib/x64/SDL2.dll"
-        "$<TARGET_FILE_DIR:MiniMotoNav>/SDL2.dll"
+        "$<TARGET_FILE_DIR:GODSPEED>/SDL2.dll"
 )
 
 enable_testing()
@@ -96,3 +100,27 @@ if(MSVC)
     target_compile_options(command_tests PRIVATE /O2 /utf-8)
 endif()
 add_test(NAME command_tests COMMAND command_tests)
+
+add_executable(
+    ble_protocol_tests
+    tests/ble_protocol_tests.cpp
+    src/app/moto_ble_protocol.cpp
+    src/app/display_feed.cpp
+)
+target_include_directories(ble_protocol_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+if(MSVC)
+    target_compile_options(ble_protocol_tests PRIVATE /O2 /utf-8)
+endif()
+add_test(NAME ble_protocol_tests COMMAND ble_protocol_tests)
+
+add_executable(
+    boot_tests
+    tests/boot_tests.cpp
+    src/boot/boot_player.cpp
+    src/boot/boot_assets.cpp
+)
+target_include_directories(boot_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+if(MSVC)
+    target_compile_options(boot_tests PRIVATE /O2 /utf-8)
+endif()
+add_test(NAME boot_tests COMMAND boot_tests)

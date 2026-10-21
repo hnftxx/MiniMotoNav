@@ -9,6 +9,8 @@
 #include "lvgl.h"
 
 #include "app/moto_app.h"
+#include "boot/boot_player.h"
+#include "platform/ble_server.h"
 
 namespace {
 
@@ -19,6 +21,7 @@ constexpr uint64_t kStatsPeriodUs = 1000000;
 
 TFT_eSPI tft;
 moto::MotoApp app;
+moto::platform::BleServer ble;
 lv_display_t* display = nullptr;
 
 alignas(4) uint8_t draw_buf[kWidth * kBufferLines * 2];
@@ -171,12 +174,63 @@ void poll_serial() {
     }
 }
 
+void push_boot_rect(const uint16_t* framebuffer, moto::boot::Rect rect) {
+    if (rect.empty()) return;
+    tft.startWrite();
+    tft.setAddrWindow(rect.x, rect.y, rect.w, rect.h);
+    for (uint16_t row = 0; row < rect.h; ++row) {
+        const uint16_t* source =
+            framebuffer + (uint32_t)(rect.y + row) * moto::boot::kWidth + rect.x;
+        tft.pushColors(const_cast<uint16_t*>(source), rect.w, true);
+    }
+    tft.endWrite();
+}
+
+bool play_boot_animation() {
+    uint16_t* framebuffer =
+        static_cast<uint16_t*>(ps_malloc(moto::boot::Player::memoryBytes()));
+    if (framebuffer == nullptr) {
+        framebuffer = static_cast<uint16_t*>(malloc(moto::boot::Player::memoryBytes()));
+    }
+    if (framebuffer == nullptr) {
+        Serial.println("[boot] no framebuffer, skipping animation");
+        return false;
+    }
+
+    moto::boot::Player player;
+    if (!player.begin(framebuffer, moto::boot::kWidth * moto::boot::kHeight) ||
+        !player.reset()) {
+        Serial.println("[boot] animation decode failed");
+        free(framebuffer);
+        return false;
+    }
+
+    Serial.printf("[boot] frames=%u ticks=%u fallback=%s\n",
+                  (unsigned)player.frameCount(), (unsigned)player.tickCount(),
+                  player.fallback() ? "yes" : "no");
+    push_boot_rect(framebuffer, player.dirty());
+
+    uint32_t last_us = (uint32_t)esp_timer_get_time();
+    while (!player.finished()) {
+        const uint32_t now_us = (uint32_t)esp_timer_get_time();
+        float dt = (float)(now_us - last_us) / 1000000.0f;
+        last_us = now_us;
+        if (dt > 0.1f) dt = 0.1f;
+
+        if (player.update(dt)) push_boot_rect(framebuffer, player.dirty());
+        delay(1);
+    }
+
+    free(framebuffer);
+    return true;
+}
+
 } // namespace
 
 void setup() {
     Serial.begin(115200);
     delay(150);
-    Serial.printf("MiniMotoNav boot: chip=%s rev=%u flash=%uMB psram=%uMB heap=%u\n",
+    Serial.printf("GODSPEED boot: chip=%s rev=%u flash=%uMB psram=%uMB heap=%u\n",
                   ESP.getChipModel(), (unsigned)ESP.getChipRevision(),
                   (unsigned)(ESP.getFlashChipSize() / (1024U * 1024U)),
                   (unsigned)(ESP.getPsramSize() / (1024U * 1024U)),
@@ -205,8 +259,10 @@ void setup() {
     lv_display_add_event_cb(display, display_event_cb, LV_EVENT_REFR_READY, nullptr);
 
     app.init();
+    play_boot_animation();
+    ble.begin();
 
-    Serial.println("MiniMotoNav ready: 320x240 ILI9341");
+    Serial.println("GODSPEED ready: 320x240 ILI9341");
     print_help();
 }
 
@@ -219,6 +275,21 @@ void loop() {
     if (dt > 0.1f) dt = 0.1f;
 
     poll_serial();
+
+    bool linked = false;
+    if (ble.pollLinkChange(linked)) {
+        app.setBleLinked(linked, millis());
+    }
+    moto::platform::BleIncoming incoming;
+    while (ble.poll(incoming)) {
+        if (incoming.kind == moto::platform::BleIncoming::Kind::kTelemetry) {
+            app.applyBleTelemetry(incoming.telemetry, millis());
+        } else {
+            app.applyBleNavigation(incoming.navigation, millis());
+        }
+    }
+    app.tickBle(millis());
+
     app.update(dt);
     lv_timer_handler();
     update_stats();

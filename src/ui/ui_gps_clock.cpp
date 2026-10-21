@@ -180,7 +180,7 @@ void GpsClockView::draw_stats(lv_layer_t* layer) {
     // Footer: garis merah dan nama aplikasi.
     draw::rect(layer, 8, 217, 52, 2, 0, kRed, LV_OPA_COVER);
     draw::rect(layer, 260, 217, 52, 2, 0, kRed, LV_OPA_COVER);
-    draw::text_in(layer, "MINIMOTONAV", &font_ui_10, kMuted, 160, 218, draw::Align::Center, 2);
+    draw::text_in(layer, "GODSPEED", &font_ui_10, kMuted, 160, 218, draw::Align::Center, 2);
 }
 
 } // namespace moto

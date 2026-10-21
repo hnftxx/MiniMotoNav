@@ -1,4 +1,4 @@
-# MiniMotoNav
+# GODSPEED
 
 Simulator dashboard sepeda motor + navigasi untuk **LVGL 9**, dengan satu sumber UI yang
 sama untuk **Windows (SDL2)** dan **ESP32-S3 N16R8 + ILI9341 320x240**.
@@ -6,7 +6,7 @@ sama untuk **Windows (SDL2)** dan **ESP32-S3 N16R8 + ILI9341 320x240**.
 Fokus utama: animasi halus 60 FPS, angka kecepatan besar yang bergulir, gauge putih-merah
 dengan zona merah, panel RPM/throttle bergaya racing, peta vektor dengan rute dan instruksi
 belok, drag strip dengan countdown/split/PB, GPS clock, serta tiga tema: race (default),
-siang, dan malam.
+siang, dan malam. Animasi startup GODSPEED dipakai bersama oleh simulator dan firmware.
 
 | Race - speedometer | Race - navigasi |
 |---|---|
@@ -30,6 +30,10 @@ siang, dan malam.
 
 ![Panel kontrol](shots/controls.png)
 
+| Animasi startup |
+|---|
+| ![Animasi startup GODSPEED](shots/boot_animation.png) |
+
 ## Fitur
 
 - Speedometer full-custom: gauge 0-160 km/h dengan zona merah 120-160, cincin dalam,
@@ -49,6 +53,8 @@ siang, dan malam.
 - FPS PC, FPS ESP32 model, frame time, SPI time, jitter, dan drop ditampilkan terpisah
   di layar navigasi (bisa disembunyikan).
 - Screenshot dan benchmark frame time + model ESP32 dari command line.
+- Animasi startup GODSPEED 320x240 RGB565: 56 frame unik, 92 tick @30 FPS, delta+RLE,
+  dengan logo `LOGO.png` sebagai fallback jika aset animasi gagal dibaca.
 
 ## Build simulator (Windows)
 
@@ -60,11 +66,14 @@ LVGL 9.3.0 ada di `third_party/lvgl` sebagai submodule, SDL2 2.30.9 sudah ada di
 git clone --recursive https://github.com/hnftxx/MiniMotoNav.git
 ```
 
+> URL GitHub masih memakai nama lama; perbarui setelah repositori di-rename menjadi
+> GODSPEED.
+
 ```powershell
 cmake -S . -B build -G "Visual Studio 17 2022" -A x64
 cmake --build build --config Release --parallel
 ctest --test-dir build -C Release --output-on-failure
-.\build\Release\MiniMotoNav.exe
+.\build\Release\GODSPEED.exe
 ```
 
 `SDL2.dll` disalin otomatis ke folder executable oleh CMake.
@@ -90,6 +99,9 @@ ctest --test-dir build -C Release --output-on-failure
 | `--dma` | Modelkan DMA overlap dengan double buffer (bukan pengukuran hardware) |
 | `--bench=N` | Ukur N frame, cetak avg/p95/max frame + render time + model ESP32 |
 | `--shot=file.bmp` | Simpan screenshot setelah warm-up |
+| `--boot` / `--no-boot` | Paksa tampil / lewati animasi startup |
+| `--boot-shot=file.bmp` | Tangkap satu frame startup lalu keluar |
+| `--boot-frame=N` | Frame startup yang ditangkap (default 30) |
 | `--speed=N` | Kecepatan untuk screenshot (default 78 km/h) |
 | `--warmup=N` | Jumlah frame sebelum screenshot (default 150) |
 | `--help` | Daftar argumen |
@@ -97,9 +109,11 @@ ctest --test-dir build -C Release --output-on-failure
 Contoh:
 
 ```powershell
-.\build\Release\MiniMotoNav.exe --bench=600 --mode=nav --theme=race
-.\build\Release\MiniMotoNav.exe --shot=shots\race_nav.bmp --warmup=180 --mode=nav --theme=race
+.\build\Release\GODSPEED.exe --bench=600 --mode=nav --theme=race
+.\build\Release\GODSPEED.exe --shot=shots\race_nav.bmp --warmup=180 --mode=nav --theme=race
+.\build\Release\GODSPEED.exe --boot-shot=shots\boot_animation.bmp --boot-frame=30
 ffmpeg -y -i shots\race_nav.bmp shots\race_nav.png
+ffmpeg -y -i shots\boot_animation.bmp shots\boot_animation.png
 ```
 
 ### Tombol keyboard
@@ -125,10 +139,10 @@ digambar**, bukan per frame loop. Frame tanpa invalidasi tidak dihitung.
 
 | Layar | Dirty px / rects | Frame digambar | Render PC avg | p95 render | Model ESP32 40 MHz |
 |---|---|---|---|---|---|
-| Speedometer | 24.325 / 3,0 | 570/570 | 0,49 ms | 0,88 ms | 11,9 ms / 60 FPS |
-| Navigasi | 76.800 / 6,0 | 271/570 | 0,58 ms | 1,50 ms | 35,6 ms / 28 FPS |
-| GPS clock | 12.377 / 2,0 | 570/570 | 0,13 ms | 0,29 ms | 6,5 ms / 60 FPS |
-| Drag (idle) | 18.231 / 2,0 | 71/570 | 0,03 ms | 0,16 ms | 9,1 ms / 60 FPS |
+| Speedometer | 24.325 / 3,0 | 570/570 | 0,56 ms | 1,02 ms | 11,9 ms / 60 FPS |
+| Navigasi | 76.800 / 6,0 | 271/570 | 0,76 ms | 1,97 ms | 35,6 ms / 28 FPS |
+| GPS clock | 12.377 / 2,0 | 570/570 | 0,14 ms | 0,36 ms | 6,5 ms / 60 FPS |
+| Drag (idle) | 18.231 / 2,0 | 71/570 | 0,03 ms | 0,17 ms | 9,1 ms / 60 FPS |
 
 Navigasi menginvalidasi seluruh peta, tetapi hanya 30 kali per detik. Pada SPI 40 MHz
 satu frame penuh 320x240 RGB565 butuh sekitar 30,7 ms hanya untuk transfer, sehingga
@@ -145,15 +159,56 @@ Loop interaktif dipacu tetap 60 FPS. Indikator FPS (layar navigasi) menunjukkan 
 dan FPS ESP32 model secara terpisah (`PC ... ESP ... FPS`). Angka model adalah estimasi
 deterministik, **bukan** klaim performa ESP32 fisik.
 
+## Animasi startup
+
+Animasi diambil dari `Godspeed Edited.mp4` (848x464, 30 FPS), diskalakan ke 320x240
+RGB565, lalu frame identik digabung. Hasil akhir: **56 frame unik / 92 tick / 3,07 detik**.
+Setiap frame disimpan sebagai delta terhadap frame sebelumnya; perubahan seragam memakai
+RLE, perubahan lain disimpan literal. Format record adalah `u16 skip, u16 run` little-endian,
+dengan bit tinggi `run` menandai RLE dan sentinel `0,0` di akhir frame.
+
+| Metrik | Nilai |
+|---|---|
+| Frame sumber 92 frame | 14.131.200 B |
+| Frame unik mentah | 8.601.600 B |
+| Full-frame RLE | 1.382.736 B |
+| **Delta+RLE (dipakai)** | **1.407.358 B** |
+| Delta literal | 1.544.296 B |
+| Rata-rata piksel berubah | 10.359 px |
+| Rata-rata bbox dirty | 28.203 px |
+| Logo fallback 300x110 | 28.030 B PNG / 30.996 B RLE |
+
+Delta+RLE dipilih meski 24.622 B lebih besar dari full-frame RLE karena firmware hanya
+mengirim bbox yang berubah. Pada SPI 40 MHz, bbox rata-rata sekitar 56 KB atau ~11 ms;
+frame penuh 153.600 B membutuhkan ~30,7 ms. Framebuffer 153.600 B dialokasikan di PSRAM
+(fallback ke RAM internal), lalu dikirim per baris dengan `pushColors(..., true)`.
+
+Aset dibangkitkan ulang dengan Node + ffmpeg:
+
+```powershell
+node tools\generate_boot_assets.js
+```
+
+Generator menulis `src/boot/boot_assets.cpp`, `assets/godspeed_logo_320.png`, dan
+`assets/boot_stats.json`. Jangan mengedit `boot_assets.cpp` manual. Jika video/logo berada
+di lokasi lain, set `GODSPEED_VIDEO` dan `GODSPEED_LOGO`.
+
+Simulator memutar animasi sebelum loop utama. Screenshot biasa otomatis melewati boot
+kecuali `--boot` diberikan; `--bench` selalu melewati boot. Firmware memutar animasi
+setelah `app.init()` dan sebelum `ble.begin()`.
+
 ## Struktur proyek
 
 ```
-src/app/          telemetri simulasi, state aplikasi, tipe performa
+src/app/          telemetri simulasi, state aplikasi, tipe performa, protokol BLE
+src/boot/         aset animasi startup + decoder bersama
 src/ui/           speedometer, navigasi, drag, GPS clock, panel kontrol, drawing helpers
 src/ui/fonts/     font Montserrat ExtraBold hasil konversi lv_font_conv
-src/platform/     entry point ESP32 (TFT_eSPI)
+src/platform/     entry point ESP32 (TFT_eSPI, NimBLE)
 sim/              SDL2 platform + main simulator
-tests/            unit test telemetri, drag, perf model, command parser (CTest)
+tests/            unit test telemetri, drag, perf, command, BLE, boot (CTest)
+tools/            generator aset boot (Node + ffmpeg)
+assets/           logo startup hasil optimasi + statistik kompresi
 include/          User_Setup.h untuk TFT_eSPI
 lv_conf.h         konfigurasi LVGL bersama
 CMakeLists.txt    build simulator + test
@@ -204,16 +259,19 @@ monitor serial. Jika upload 921600 baud tidak stabil, turunkan `upload_speed` ke
 
 Konfigurasi memakai LVGL 9.3.0 + TFT_eSPI dari registry PlatformIO, buffer parsial
 320x40 baris, dan flush manual RGB565 (`pushColors(..., true)`). Firmware mencetak
-diagnostik boot (chip, flash, PSRAM, heap) dan statistik refresh per detik di serial.
+diagnostik boot (chip, flash, PSRAM, heap, jumlah frame/tick animasi) dan statistik
+refresh per detik di serial.
 
-Status build terakhir (PlatformIO 6.2.0, Arduino core 3.3.12, `pio run -e esp32s3`):
+Status build terakhir (PlatformIO, `pio run -e esp32s3`):
 
 | Memori | Terpakai | Kapasitas | Persentase |
 |---|---|---|---|
-| RAM statis | 59.712 B | 327.680 B | 18,2% |
-| Flash (app) | 741.228 B | 6.553.600 B | 11,3% |
+| RAM statis | 70.416 B | 327.680 B | 21,5% |
+| Flash (app) | 2.460.467 B | 6.553.600 B | 37,5% |
 
-Angka di atas adalah hasil kompilasi, bukan hasil pengukuran di perangkat.
+Angka di atas adalah hasil kompilasi, bukan hasil pengukuran di perangkat. Kenaikan
+flash terutama berasal dari data animasi startup (~1,44 MB) dan kode BLE; framebuffer
+boot 153.600 B dialokasikan saat runtime di PSRAM.
 
 ### Catatan performa hardware
 
@@ -279,7 +337,8 @@ berada di RAM internal, jadi PSRAM tidak wajib untuk kode ini.
 - Timing drag dirancang untuk closed course; GPS ponsel tidak boleh diklaim
   memberikan akurasi milidetik.
 - Rute navigasi adalah demo geometris, bukan data peta/OSRM.
-- Performa hardware belum diverifikasi.
+- Performa hardware dan animasi startup di panel fisik belum diverifikasi; frame rate
+  boot di simulator tidak menjamin timing SPI/PSRAM di ESP32-S3.
 
 ## Lisensi komponen pihak ketiga
 

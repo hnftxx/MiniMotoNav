@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "app/moto_app.h"
+#include "boot/boot_player.h"
 
 namespace moto {
 namespace {
@@ -43,7 +44,7 @@ bool SimPlatform::init(const SimOptions& options, MotoApp* app) {
     }
 
     const int scale = std::max(1, options_.scale);
-    window_ = SDL_CreateWindow("MiniMotoNav - motorcycle dashboard simulator",
+    window_ = SDL_CreateWindow("GODSPEED - motorcycle dashboard simulator",
                                SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, kWidth * scale,
                                kHeight * scale, SDL_WINDOW_SHOWN);
     if (window_ == nullptr) {
@@ -121,6 +122,13 @@ bool SimPlatform::init(const SimOptions& options, MotoApp* app) {
 
 int SimPlatform::run() {
     bool quit = false;
+    if (options_.boot) {
+        bool boot_quit = false;
+        playBoot(boot_quit);
+        if (boot_quit) return 0;
+    }
+    if (!options_.boot_shot_path.empty()) return 0;
+
     int frame_index = 0;
     int stat_skip = options_.bench ? 30 : 0;
 
@@ -322,7 +330,68 @@ void SimPlatform::present() {
     SDL_RenderPresent(renderer_);
 }
 
-void SimPlatform::capture_screenshot() {
+bool SimPlatform::playBoot(bool& quit) {
+    std::vector<uint16_t> pixels((size_t)boot::kWidth * boot::kHeight);
+    boot::Player player;
+    if (!player.begin(pixels.data(), (uint32_t)pixels.size())) {
+        std::fprintf(stderr, "[boot] animation unavailable\n");
+        return false;
+    }
+    if (!player.reset()) {
+        std::fprintf(stderr, "[boot] animation decode failed\n");
+        return false;
+    }
+
+    drawBoot(pixels.data());
+    std::printf("[boot] frames=%u ticks=%u\n", (unsigned)player.frameCount(),
+                (unsigned)player.tickCount());
+
+    if (!options_.boot_shot_path.empty() && player.frameIndex() >= options_.boot_frame) {
+        saveScreenshot(options_.boot_shot_path);
+        return true;
+    }
+    SDL_RenderPresent(renderer_);
+
+    uint64_t last = SDL_GetPerformanceCounter();
+    while (!player.finished()) {
+        handle_events(quit);
+        if (quit) return false;
+
+        const uint64_t now = SDL_GetPerformanceCounter();
+        float dt = (float)((double)(now - last) / (double)g_tick_freq);
+        last = now;
+        if (dt > 0.1f) dt = 0.1f;
+
+        if (player.update(dt)) {
+            drawBoot(pixels.data());
+            if (!options_.boot_shot_path.empty() &&
+                player.frameIndex() >= options_.boot_frame) {
+                saveScreenshot(options_.boot_shot_path);
+                return true;
+            }
+            SDL_RenderPresent(renderer_);
+        }
+        SDL_Delay(1);
+    }
+
+    if (!options_.boot_shot_path.empty()) {
+        drawBoot(pixels.data());
+        saveScreenshot(options_.boot_shot_path);
+    }
+    return true;
+}
+
+void SimPlatform::drawBoot(const uint16_t* pixels) {
+    if (texture_ == nullptr || pixels == nullptr) return;
+    SDL_UpdateTexture(texture_, nullptr, pixels, boot::kWidth * kBytesPerPixel);
+    SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
+    SDL_RenderClear(renderer_);
+    SDL_RenderCopy(renderer_, texture_, nullptr, nullptr);
+}
+
+void SimPlatform::saveScreenshot(const std::string& requested_path) {
+    if (requested_path.empty()) return;
+
     int w = 0;
     int h = 0;
     SDL_GetRendererOutputSize(renderer_, &w, &h);
@@ -335,8 +404,7 @@ void SimPlatform::capture_screenshot() {
         return;
     }
 
-    std::string path = options_.shot_path;
-    if (path.empty()) return;
+    std::string path = requested_path;
     if (path.size() < 4 || path.compare(path.size() - 4, 4, ".bmp") != 0) path += ".bmp";
 
     SDL_Surface* surface = SDL_CreateRGBSurfaceWithFormatFrom(
@@ -348,6 +416,10 @@ void SimPlatform::capture_screenshot() {
         std::printf("[shot] saved %s (%dx%d)\n", path.c_str(), w, h);
     }
     SDL_FreeSurface(surface);
+}
+
+void SimPlatform::capture_screenshot() {
+    saveScreenshot(options_.shot_path);
 }
 
 void SimPlatform::print_benchmark() {

@@ -2,6 +2,7 @@
 
 #include "lvgl.h"
 
+#include "app/display_feed.h"
 #include "app/drag_session.h"
 #include "app/moto_command.h"
 #include "app/moto_telemetry.h"
@@ -30,8 +31,15 @@ public:
     void handleCommand(const Command& command);
     void pollCommands();
 
-    const Telemetry& telemetry() const { return sim_.data(); }
+    const Telemetry& telemetry() const { return feed_active_ ? feed_.telemetry() : sim_.data(); }
     const PerfStats& perf() const { return perf_; }
+    bool bleActive() const { return feed_active_; }
+
+    void applyBleTelemetry(const ble::TelemetryFields& fields, uint32_t now_ms);
+    void applyBleNavigation(const ble::NavigationFields& navigation, uint32_t now_ms);
+    void setBleLinked(bool linked, uint32_t now_ms);
+    void tickBle(uint32_t now_ms);
+    void clearBleFeed();
     bool nightMode() const { return theme_ == Theme::Night; }
     Theme theme() const { return theme_; }
     AppMode mode() const { return mode_; }
@@ -67,6 +75,8 @@ private:
     void loadScreen(AppMode mode, bool animate = true);
 
     TelemetrySim sim_;
+    DisplayFeed feed_;
+    bool feed_active_ = false;
     Clock clock_;
     PerfStats perf_;
     CommandQueue commands_;

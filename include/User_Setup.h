@@ -1,4 +1,4 @@
-// TFT_eSPI setup for MiniMotoNav.
+// TFT_eSPI setup for GODSPEED.
 // ESP32-S3 DevKitC-1 N16R8 + ILI9341 2.8" 320x240 SPI panel.
 //
 // If your wiring differs, change the pins here. This file is force-included by
@@ -7,10 +7,10 @@
 // Backlight is driven by TFT_BL. Set TFT_BL to -1 and TFT_BACKLIGHT_ON to HIGH
 // if your panel's LED pin is tied to 3V3.
 
-#ifndef MINIMOTONAV_USER_SETUP_H
-#define MINIMOTONAV_USER_SETUP_H
+#ifndef GODSPEED_USER_SETUP_H
+#define GODSPEED_USER_SETUP_H
 
-#define USER_SETUP_INFO "MiniMotoNav ILI9341"
+#define USER_SETUP_INFO "GODSPEED ILI9341"
 
 #define ILI9341_DRIVER
 

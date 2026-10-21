@@ -9,10 +9,10 @@ namespace {
 
 void print_usage() {
     std::printf(
-        "MiniMotoNav - motorcycle dashboard simulator\n"
+        "GODSPEED - motorcycle dashboard simulator\n"
         "\n"
         "Usage:\n"
-        "  MiniMotoNav [options]\n"
+        "  GODSPEED [options]\n"
         "\n"
         "Options:\n"
         "  --mode=speedo|nav|drag|gps  Start on a display mode\n"
@@ -28,6 +28,10 @@ void print_usage() {
         "  --jitter=RATIO      Override modeled frame jitter (0..0.5)\n"
         "  --dma               Model overlapped DMA with double buffering\n"
         "  --shot=FILE.bmp     Render a screenshot after the warm-up frames\n"
+        "  --boot              Force the GODSPEED startup animation\n"
+        "  --no-boot           Skip the startup animation\n"
+        "  --boot-shot=FILE.bmp Capture a startup-animation frame and exit\n"
+        "  --boot-frame=N      Animation frame to capture (default 30)\n"
         "  --speed=N           Speed used for non-drag screenshots (default 78 km/h)\n"
         "  --drag-target=M     Drag distance in metres (default 400)\n"
         "  --drag-split=M      Split interval in metres, 0 disables (default 1000)\n"
@@ -171,6 +175,23 @@ int main(int argc, char** argv) {
         } else if (arg == "--shot" && i + 1 < argc) {
             options.shot_path = argv[++i];
             options.screenshot = !options.shot_path.empty();
+        } else if (arg == "--boot") {
+            options.boot = true;
+            options.boot_explicit = true;
+        } else if (arg == "--no-boot") {
+            options.boot = false;
+            options.boot_explicit = true;
+        } else if (arg.rfind("--boot-shot=", 0) == 0) {
+            options.boot_shot_path = arg.substr(12);
+            options.boot = true;
+            options.boot_explicit = true;
+        } else if (arg == "--boot-shot" && i + 1 < argc) {
+            options.boot_shot_path = argv[++i];
+            options.boot = true;
+            options.boot_explicit = true;
+        } else if (arg.rfind("--boot-frame=", 0) == 0) {
+            int v = 0;
+            if (parse_int(arg.substr(13), v) && v >= 0) options.boot_frame = v;
         } else if (arg.rfind("--frames=", 0) == 0) {
             int v = 0;
             if (parse_int(arg.substr(9), v) && v > 0) options.bench_frames = v;
@@ -186,6 +207,13 @@ int main(int argc, char** argv) {
     if (options.drag_target < 10.0f) options.drag_target = 10.0f;
     if (options.drag_target > 10000.0f) options.drag_target = 10000.0f;
     if (options.screenshot && options.start_mode == moto::AppMode::Drag) options.drag_armed = true;
+    if (!options.boot_shot_path.empty()) {
+        options.boot = true;
+        options.screenshot = false;
+    }
+    if (options.bench) options.boot = false;
+    if (options.screenshot && !options.boot_explicit) options.boot = false;
+    if (options.boot_frame < 0) options.boot_frame = 0;
 
     options.hardware = moto::make_profile(profile);
     bool overridden = profile == moto::PerfProfile::Custom;
